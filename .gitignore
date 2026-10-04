@@ -1,0 +1,6 @@
+# Local environment overrides & temporary credentials
+.env
+*.key
+*.pem
+*.json.bak
+.DS_Store
