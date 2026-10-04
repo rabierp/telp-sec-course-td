@@ -1,80 +1,93 @@
 # Cybersécurité du Cloud (GCP) — Travaux Pratiques (Telecom Paris)
 
 Ce dépôt (`rabierp/telp-sec-course-td`) contient le code de l'application fil
-rouge **Cymbal Bank Serverless + AI**, l'outil de vérification `./bin/lab-ctl`
-pour **Google Cloud Shell**, ainsi que les guides de travaux pratiques répartis
-sur 4 demi-journées (8 modules).
+rouge **TelP Sovereign Shop**, le binaire de vérification `./bin/lab-ctl` pour
+**Google Cloud Shell**, ainsi que les guides de travaux pratiques répartis sur
+4 journées (8 modules).
 
 ## Architecture Fil Rouge (Landing Zone à 4 Projets par Étudiant)
 
-Dans votre dossier dédié `Students/student-<slug>` sous l'organisation
-`gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de 4 projets
-pré-créés :
+Dans votre dossier dédié `folders/$FOLDER_ID` (`students/student-<slug>`) sous
+l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
+4 projets pré-créés :
 
-1.  **`telp-<slug>-net` (`TELP_PROJECT_NET`)** : Projet hôte **Shared VPC**
-    (`vpc-shared`), sous-réseaux segmentés (`subnet-front`, `subnet-back`,
-    `subnet-bastion`), Cloud NAT, Private Cloud DNS et règles de pare-feu.
-2.  **`telp-<slug>-front` (`TELP_PROJECT_FRONT`)** : Projet de service Shared
-    VPC (DMZ publique) hébergeant le service Cloud Run `frontend`, le Global
-    External Application Load Balancer, Cloud Armor (WAF/DDoS) et Identity-Aware
-    Proxy (IAP).
-3.  **`telp-<slug>-back` (`TELP_PROJECT_BACK`)** : Projet de service Shared VPC
-    (Zone interne & IA) hébergeant les services Cloud Run internes `backend` et
-    `ai-assistant`, le bastion `e2-micro` (`--no-address`), Firestore
-    `(default)`, le bucket GCS des reçus, Secret Manager, Cloud DLP et Vertex
-    AI + Model Armor.
-4.  **`telp-<slug>-sec` (`TELP_PROJECT_SEC`)** : Projet SecOps centralisant les
-    clés **Cloud KMS (CMEK)**, les clés de signature **Binary Authorization** et
-    le bucket verrouillé des journaux d'audit (`sink-folder-audit`).
+1. **`telp-<slug>-net-<hash>` (`$NET_PROJECT_ID`)** : Projet hôte **Shared VPC**
+   (`vpc-shared`), sous-réseaux segmentés (`subnet-front`, `subnet-back`,
+   `subnet-bastion`), Private Google Access, Cloud Router + Cloud NAT (`nat-gw`),
+   Private Cloud DNS (`zone-internal`) et règles de pare-feu.
+2. **`telp-<slug>-front-<hash>` (`$FRONT_PROJECT_ID`)** : Projet de service
+   Shared VPC (DMZ publique) hébergeant le service Cloud Run `frontend`, le
+   Global External Application Load Balancer (`url-map-frontend`), Cloud Armor
+   (`armor-frontend-waf`) et Identity-Aware Proxy (IAP sur `/admin`).
+3. **`telp-<slug>-back-<hash>` (`$BACK_PROJECT_ID`)** : Projet de service Shared
+   VPC (Zone interne & IA) hébergeant les services Cloud Run internes `backend`
+   et `ai-assistant`, le bastion `e2-micro` (`bastion` sans IP publique),
+   Firestore `(default)`, le bucket GCS des reçus (`gs://$BACK_PROJECT_ID-receipts`),
+   Secret Manager (`receipt-signing-secret`), Cloud DLP (`dlp-inspect-pii`,
+   `dlp-deid-pii`) et Model Armor (`telp-ai-guardrail`) + Vertex AI
+   (`gemini-2.5-flash`).
+4. **`telp-<slug>-sec-<hash>` (`$SEC_PROJECT_ID`)** : Projet SecOps centralisant
+   les clés **Cloud KMS (CMEK)** (`kr-central/key-app-storage`), le bucket
+   verrouillé des journaux d'audit (`gs://$SEC_PROJECT_ID-audit-logs` alimenté
+   par le puits agrégé `sink-folder-audit`) et les alertes Cloud Monitoring.
 
 ## Démarrage Rapide (Cloud Shell)
 
-1.  Activez votre coupon de **50 \$ de crédits Google Cloud Education** reçu par
-    e-mail avant d'ouvrir Cloud Shell.
-2.  Clonez ce dépôt dans **Google Cloud Shell** :
+1. Activez votre coupon de **50 \$ de crédits Google Cloud Education** reçu par
+   e-mail avant d'ouvrir Cloud Shell.
+2. Clonez ce dépôt dans **Google Cloud Shell** :
 
-    ```bash
-    git clone https://github.com/rabierp/telp-sec-course-td.git
-    cd telp-sec-course-td
-    ```
-3.  Au début de chaque session Cloud Shell, découvrez vos 4 projets et associez
-    votre compte de facturation Education :
+   ```bash
+   git clone https://github.com/rabierp/telp-sec-course-td.git
+   cd telp-sec-course-td
+   ```
 
-    ```bash
-    source <(./bin/lab-ctl env)
-    ```
+3. Au début de chaque session Cloud Shell, découvrez vos 4 projets et exportez
+   les variables d'environnement (`FOLDER_ID`, `ACCESS_POLICY_ID`,
+   `NET_PROJECT_ID`, `FRONT_PROJECT_ID`, `FRONT_PROJECT_NUMBER`,
+   `BACK_PROJECT_ID`, `BACK_PROJECT_NUMBER`, `SEC_PROJECT_ID`, `REGION`) :
 
-## Programme des 4 Demi-Journées (8 Modules)
+   ```bash
+   source <(./bin/lab-ctl env)
+   ```
 
--   **Demi-journée 1 — Cloud Identity, Hiérarchie des Ressources & IAM**
-    -   [Module 1 (`day1/mod1`)](./day1/mod1/README.md) : Hiérarchie des
-        ressources, politiques d'organisation et moindre privilège IAM
-        (`sa-frontend`, `sa-backend`, `sa-ai`).
-    -   [Module 2 (`day1/mod2`)](./day1/mod2/README.md) : Impersonation sans clé
-        JSON, IAM Conditions temporelles et Workload Identity Federation (WIF).
--   **Demi-journée 2 — Segmentation Réseau Shared VPC & Accès Zero-Trust**
-    -   [Module 3 (`day2/mod3`)](./day2/mod3/README.md) : Shared VPC
-        Host/Service (`net`, `front`, `back`), Private Google Access, Cloud NAT
-        et ingress interne Cloud Run.
-    -   [Module 4 (`day2/mod4`)](./day2/mod4/README.md) : Pare-feu VPC, Bastion
-        `e2-micro` sans IP publique via IAP TCP Forwarding + OS Login, et VPC
-        Service Controls (VPC-SC).
--   **Demi-journée 3 — Protection Edge, Cryptographie KMS & Journalisation
-    SecOps**
-    -   [Module 5 (`day3/mod5`)](./day3/mod5/README.md) : Global External
-        Application Load Balancer, Cloud Armor (OWASP SQLi/XSS + DDoS Rate
-        Limiting) et IAP.
-    -   [Module 6 (`day3/mod6`)](./day3/mod6/README.md) : Cloud KMS centralisé
-        (CMEK dans `sec`), Secret Manager et puits de logs d'audit agrégé au
-        niveau du dossier étudiant.
--   **Demi-journée 4 — Protection des Données (DLP), Sécurité IA, Supply Chain &
-    SCC**
-    -   [Module 7 (`day4/mod7`)](./day4/mod7/README.md) : Sensitive Data
-        Protection (Cloud DLP) et sécurisation de l'assistant Vertex AI
-        (`gemini-2.5-flash`) avec Model Armor.
-    -   [Module 8 (`day4/mod8`)](./day4/mod8/README.md) : Sécurité de la chaîne
-        logistique (Binary Authorization avec attestations KMS) et Security
-        Command Center (SCC).
+## Programme des 4 Journées (8 Modules)
+
+- **Jour 1 — Fondations GCP, Politiques d'Organisation & IAM Inter-Projets**
+  - [Module 1 (`day1/mod1`)](./day1/mod1/README.md) : Découverte du dossier
+    étudiant, facturation, politiques d'organisation (`europe-west1`, absence
+    d'IP publique) et déploiement initial de *TelP Sovereign Shop* (`frontend`,
+    `backend`, Firestore, GCS et `bastion`).
+  - [Module 2 (`day1/mod2`)](./day1/mod2/README.md) : Moindre privilège IAM,
+    comptes de service dédiés (`sa-frontend`, `sa-backend`, `sa-bastion`),
+    authentification OIDC inter-projets Cloud Run, Uniform Bucket-Level Access,
+    zéro clé JSON et OS Login.
+- **Jour 2 — Segmentation Réseau Shared VPC & Périmètre VPC Service Controls**
+  - [Module 3 (`day2/mod3`)](./day2/mod3/README.md) : Architecture Shared VPC
+    Host (`net`) & Service Projects (`front`, `back`), isolation IAM par
+    sous-réseau (`subnet-front`, `subnet-back`, `subnet-bastion`), pare-feu IAP
+    et Direct VPC Egress.
+  - [Module 4 (`day2/mod4`)](./day2/mod4/README.md) : Private Google Access
+    (PGA), Cloud NAT avec journalisation, Private Cloud DNS (`zone-internal`) et
+    périmètre VPC Service Controls (VPC-SC) englobant les 4 projets.
+- **Jour 3 — Protection Edge (WAF/IAP), Cryptographie KMS & Journalisation SecOps**
+  - [Module 5 (`day3/mod5`)](./day3/mod5/README.md) : Global External
+    Application Load Balancer, restriction d'ingress Cloud Run, Cloud Armor WAF
+    (`sqli-v33-stable`, `xss-v33-stable`, limitation de débit) et IAP sur
+    `/admin`.
+  - [Module 6 (`day3/mod6`)](./day3/mod6/README.md) : Secret Manager
+    (`receipt-signing-secret`), chiffrement Cloud KMS CMEK inter-projets
+    (`sec` -> `back`), puits de logs d'audit agrégé sur `folders/$FOLDER_ID`
+    (`sink-folder-audit`) vers un bucket WORM verrouillé et alertes SIEM.
+- **Jour 4 — Conformité, Security Command Center (SCC) & Sécurité de l'IA (SAIF)**
+  - [Module 7 (`day4/mod7`)](./day4/mod7/README.md) : Souveraineté numérique,
+    détection et remédiation des écarts de conformité Security Command Center
+    (rotation KMS à 90 jours dans `sec`, UBLA + Versioning dans `back`, VPC Flow
+    Logs sur `subnet-back` dans `net`).
+  - [Module 8 (`day4/mod8`)](./day4/mod8/README.md) : Sécurisation du
+    microservice `ai-assistant` (Vertex AI `gemini-2.5-flash`) avec Sensitive
+    Data Protection (Cloud DLP `dlp-inspect-pii`, `dlp-deid-pii`) et Model Armor
+    (`telp-ai-guardrail`).
 
 ## Commandes Utiles (`./bin/lab-ctl`)
 
@@ -82,12 +95,12 @@ pré-créés :
 # Découvrir vos 4 projets et exporter les variables d'environnement
 source <(./bin/lab-ctl env)
 
-# Rattraper automatiquement le pré-requis d'infrastructure d'un module
-./bin/lab-ctl setup --day <1..4> --mod <1..8>
+# Préparer ou rattraper automatiquement l'état initial d'un module
+./bin/lab-ctl setup --day=<1..4> --module=<1..8>
 
-# Vérifier votre configuration de sécurité et enregistrer votre score
-./bin/lab-ctl verify --day <1..4> --mod <1..8>
+# Vérifier votre configuration de sécurité et enregistrer votre score signé
+./bin/lab-ctl verify --day=<1..4> --module=<1..8>
 
-# Nettoyer les ressources facturées à l'heure en fin de demi-journée
-./bin/lab-ctl cleanup --day <1..4>
+# Nettoyer les ressources facturées à l'heure en fin de journée
+./bin/lab-ctl cleanup --day=<1..4>
 ```
