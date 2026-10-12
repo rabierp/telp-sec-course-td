@@ -7,26 +7,26 @@ rouge **TelP Sovereign Shop**, le binaire de vérification `./bin/lab-ctl` pour
 
 ## Architecture Fil Rouge (Landing Zone à 4 Projets par Étudiant)
 
-Dans votre dossier dédié `folders/$FOLDER_ID` (`students/student-<slug>`) sous
+Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<slug>`) sous
 l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
 4 projets pré-créés :
 
-1. **`telp-<slug>-net-<hash>` (`$NET_PROJECT_ID`)** : Projet hôte **Shared VPC**
+1. **`telp-<slug>-net` (`$NET_PROJECT_ID`)** : Projet hôte **Shared VPC**
    (`vpc-shared`), sous-réseaux segmentés (`subnet-front`, `subnet-back`,
    `subnet-bastion`), Private Google Access, Cloud Router + Cloud NAT (`nat-gw`),
    Private Cloud DNS (`zone-internal`) et règles de pare-feu.
-2. **`telp-<slug>-front-<hash>` (`$FRONT_PROJECT_ID`)** : Projet de service
+2. **`telp-<slug>-front` (`$FRONT_PROJECT_ID`)** : Projet de service
    Shared VPC (DMZ publique) hébergeant le service Cloud Run `frontend`, le
    Global External Application Load Balancer (`url-map-frontend`), Cloud Armor
    (`armor-frontend-waf`) et Identity-Aware Proxy (IAP sur `/admin`).
-3. **`telp-<slug>-back-<hash>` (`$BACK_PROJECT_ID`)** : Projet de service Shared
+3. **`telp-<slug>-back` (`$BACK_PROJECT_ID`)** : Projet de service Shared
    VPC (Zone interne & IA) hébergeant les services Cloud Run internes `backend`
    et `ai-assistant`, le bastion `e2-micro` (`bastion` sans IP publique),
    Firestore `(default)`, le bucket GCS des reçus (`gs://$BACK_PROJECT_ID-receipts`),
    Secret Manager (`receipt-signing-secret`), Cloud DLP (`dlp-inspect-pii`,
    `dlp-deid-pii`) et Model Armor (`telp-ai-guardrail`) + Vertex AI
    (`gemini-2.5-flash`).
-4. **`telp-<slug>-sec-<hash>` (`$SEC_PROJECT_ID`)** : Projet SecOps centralisant
+4. **`telp-<slug>-sec` (`$SEC_PROJECT_ID`)** : Projet SecOps centralisant
    les clés **Cloud KMS (CMEK)** (`kr-central/key-app-storage`), le bucket
    verrouillé des journaux d'audit (`gs://$SEC_PROJECT_ID-audit-logs` alimenté
    par le puits agrégé `sink-folder-audit`) et les alertes Cloud Monitoring.
@@ -35,17 +35,19 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
 
 1. Activez votre coupon de **50 \$ de crédits Google Cloud Education** reçu par
    e-mail avant d'ouvrir Cloud Shell.
-2. Clonez ce dépôt dans **Google Cloud Shell** :
+2. Clonez ce dépôt dans **Google Cloud Shell** et initialisez vos identifiants Application Default Credentials (ADC) :
 
    ```bash
    git clone https://github.com/rabierp/telp-sec-course-td.git
    cd telp-sec-course-td
+   gcloud auth application-default login
    ```
 
 3. Au début de chaque session Cloud Shell, découvrez vos 4 projets et exportez
    les variables d'environnement (`FOLDER_ID`, `ACCESS_POLICY_ID`,
-   `NET_PROJECT_ID`, `FRONT_PROJECT_ID`, `FRONT_PROJECT_NUMBER`,
-   `BACK_PROJECT_ID`, `BACK_PROJECT_NUMBER`, `SEC_PROJECT_ID`, `REGION`) :
+   `NET_PROJECT_ID`, `NET_PROJECT_NUMBER`, `FRONT_PROJECT_ID`,
+   `FRONT_PROJECT_NUMBER`, `BACK_PROJECT_ID`, `BACK_PROJECT_NUMBER`,
+   `SEC_PROJECT_ID`, `SEC_PROJECT_NUMBER`, `REGION`) :
 
    ```bash
    source <(./bin/lab-ctl env)
