@@ -53,6 +53,13 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
    source <(./bin/lab-ctl env)
    ```
 
+4. **Tester votre application déployée (`Cloud Shell Web Preview` & `gcloud` CLI)** :
+   - La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit toute exposition publique anonyme (`allUsers`). Vos services Cloud Run sont donc déployés avec `--no-allow-unauthenticated`.
+   - Jusqu'à l'étape d'activation d'**Identity-Aware Proxy (IAP)** au Module 5, testez votre application **TelP Sovereign Shop** depuis Cloud Shell :
+     - **En mode graphique via Cloud Shell Web Preview** : lancez `gcloud run services proxy frontend --project="$FRONT_PROJECT_ID" --region="$REGION" --port=8080`, puis cliquez sur **Web Preview** -> **Preview on port 8080** en haut à droite de Cloud Shell.
+     - **En ligne de commande (SDK / CLI)** : utilisez un jeton OIDC via `curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$FRONTEND_URL/healthz"`.
+   - À partir de l'étape IAP du Module 5, vous accéderez directement à `/admin` depuis votre navigateur via l'URL du Global External Application Load Balancer protégé par IAP.
+
 ## Programme des 4 Journées (8 Modules)
 
 - **Jour 1 — Fondations GCP, Politiques d'Organisation & IAM Inter-Projets**
