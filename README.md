@@ -58,7 +58,7 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
    - Jusqu'à l'étape d'activation d'**Identity-Aware Proxy (IAP)** au Module 5, testez votre application **TelP Sovereign Shop** depuis Cloud Shell :
      - **En mode graphique via Cloud Shell Web Preview** : lancez `gcloud run services proxy frontend --project="$FRONT_PROJECT_ID" --region="$REGION" --port=8080`, puis cliquez sur **Web Preview** -> **Preview on port 8080** en haut à droite de Cloud Shell.
      - **En ligne de commande (SDK / CLI)** : utilisez un jeton OIDC via `curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$FRONTEND_URL/healthz"`.
-   - À partir de l'étape IAP du Module 5, vous accéderez directement à `/admin` depuis votre navigateur via l'URL du Global External Application Load Balancer protégé par IAP.
+   - À partir de l'étape IAP du Module 5, vous accéderez directement à `/admin` depuis votre navigateur via l'URL HTTPS du Global External Application Load Balancer (`https://<lb-ip>.nip.io/admin`) protégé par IAP.
 
 ## Programme des 4 Journées (8 Modules)
 
