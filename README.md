@@ -1,7 +1,7 @@
 # Cybersécurité du Cloud (GCP) — Travaux Pratiques (Telecom Paris)
 
 Ce dépôt (`rabierp/telp-sec-course-td`) contient le code de l'application fil
-rouge **TelP Sovereign Shop**, le binaire de vérification `./bin/lab-ctl` pour
+rouge **TelP Secure Shop**, le binaire de vérification `./bin/lab-ctl` pour
 **Google Cloud Shell**, ainsi que les guides de travaux pratiques répartis sur
 4 journées (8 modules).
 
@@ -55,7 +55,7 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
 
 4. **Tester votre application déployée (`Cloud Shell Web Preview` & `gcloud` CLI)** :
    - La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit toute exposition publique anonyme (`allUsers`). Vos services Cloud Run sont donc déployés avec `--no-allow-unauthenticated`.
-   - Jusqu'à l'étape d'activation d'**Identity-Aware Proxy (IAP)** au Module 5, testez votre application **TelP Sovereign Shop** depuis Cloud Shell :
+   - Jusqu'à l'étape d'activation d'**Identity-Aware Proxy (IAP)** au Module 5, testez votre application **TelP Secure Shop** depuis Cloud Shell :
      - **En mode graphique via Cloud Shell Web Preview** : lancez `gcloud run services proxy frontend --project="$FRONT_PROJECT_ID" --region="$REGION" --port=8080`, puis cliquez sur **Web Preview** -> **Preview on port 8080** en haut à droite de Cloud Shell.
      - **En ligne de commande (SDK / CLI)** : utilisez un jeton OIDC via `curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$FRONTEND_URL/healthz"`.
    - À partir de l'étape IAP du Module 5, vous accéderez directement à `/admin` depuis votre navigateur via l'URL HTTPS du Global External Application Load Balancer (`https://<lb-ip>.nip.io/admin`) protégé par IAP.
@@ -65,7 +65,7 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
 - **Jour 1 — Fondations GCP, Politiques d'Organisation & IAM Inter-Projets**
   - [Module 1 (`day1/mod1`)](./day1/mod1/README.md) : Découverte du dossier
     étudiant, facturation, politiques d'organisation (`europe-west1`, absence
-    d'IP publique) et déploiement initial de *TelP Sovereign Shop* (`frontend`,
+    d'IP publique) et déploiement initial de *TelP Secure Shop* (`frontend`,
     `backend`, Firestore, GCS et `bastion`).
   - [Module 2 (`day1/mod2`)](./day1/mod2/README.md) : Moindre privilège IAM,
     comptes de service dédiés (`sa-frontend`, `sa-backend`, `sa-bastion`),
