@@ -61,7 +61,7 @@ rouge **TelP Secure Shop**, le binaire de vérification `./bin/lab-ctl` pour
     (`sec` -> `back`), puits de logs d'audit agrégé sur `folders/$FOLDER_ID`
     (`sink-folder-audit`) vers un bucket WORM verrouillé et alertes SIEM.
 - **Jour 4 — Conformité, Security Command Center (SCC) & Sécurité de l'IA (SAIF)**
-  - [Module 7 (`day4/mod7`)](./day4/mod7/README.md) : Souveraineté numérique,
+  - [Module 7 (`day4/mod7`)](./day4/mod7/README.md) : Résidence des données en Europe,
     détection et remédiation des écarts de conformité Security Command Center
     (rotation KMS à 90 jours dans `sec`, UBLA + Versioning dans `back`, VPC Flow
     Logs sur `subnet-back` dans `net`).

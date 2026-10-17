@@ -12,7 +12,7 @@ Dans ce premier module, vous prenez en main votre **Landing Zone d'entreprise à
 
 1. Découvrir l'isolation multi-projets (`net`, `front`, `back`, `sec`), vérifier l'association de votre compte de facturation et appliquer le principe de **moindre activation des API Cloud** (uniquement les API requises pour le Jour 1).
 2. Observer en pratique les **10 Politiques d'Organisation (Organization Policies)** actives sur le dossier `Students` :
-   * `constraints/gcp.resourceLocations` (`in:europe-west1-locations`) : souveraineté et résidence des données en Europe.
+   * `constraints/gcp.resourceLocations` (`in:europe-west1-locations`) : résidence des données en Europe.
    * `constraints/iam.allowedPolicyMemberDomains` & `constraints/storage.publicAccessPrevention` : blocage de toute exposition anonyme (`allUsers` / `allAuthenticatedUsers`).
    * `constraints/compute.vmExternalIpAccess` (`denyAll: true`) & `constraints/compute.requireShieldedVm` : interdiction des adresses IP publiques sur les machines virtuelles et obligation des Shielded VMs.
 3. Provisionner la base **Firestore Native `(default)`** et le bucket GCS **`gs://$BACK_PROJECT_ID-receipts`** dans `$BACK_PROJECT_ID`.
@@ -135,7 +135,7 @@ Pour réduire la surface d'attaque du plan de contrôle GCP, seuls les services 
      --project="${BACK_PROJECT_ID}"
    ```
 
-2. **Test de cas limite (Souveraineté `constraints/gcp.resourceLocations`)** — Tentez de créer un bucket aux États-Unis (`us-central1`) :
+2. **Test de cas limite (Résidence des données en Europe `constraints/gcp.resourceLocations`)** — Tentez de créer un bucket aux États-Unis (`us-central1`) :
 
    ```bash
    gcloud storage buckets create "gs://${BACK_PROJECT_ID}-us-test" \
