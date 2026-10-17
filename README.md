@@ -53,12 +53,33 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
    source <(./bin/lab-ctl env)
    ```
 
-4. **Tester votre application déployée (`Cloud Shell Web Preview` & `gcloud` CLI)** :
-   - La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit toute exposition publique anonyme (`allUsers`). Vos services Cloud Run sont donc déployés avec `--no-allow-unauthenticated`.
-   - Jusqu'à l'étape d'activation d'**Identity-Aware Proxy (IAP)** au Module 5, testez votre application **TelP Secure Shop** depuis Cloud Shell :
-     - **En mode graphique via Cloud Shell Web Preview** : lancez `gcloud run services proxy frontend --project="$FRONT_PROJECT_ID" --region="$REGION" --port=8080`, puis cliquez sur **Web Preview** -> **Preview on port 8080** en haut à droite de Cloud Shell.
-     - **En ligne de commande (SDK / CLI)** : utilisez un jeton OIDC via `curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$FRONTEND_URL/healthz"`.
-   - À partir de l'étape IAP du Module 5, vous accéderez directement à `/admin` depuis votre navigateur via l'URL HTTPS du Global External Application Load Balancer (`https://<lb-ip>.nip.io/admin`) protégé par IAP.
+4. **Obtenir l'URL de votre application et la tester (`Cloud Shell Web Preview`, navigateur local ou `curl`)** :
+   - **Récupérer les URLs Cloud Run (`FRONTEND_URL` et `BACKEND_URL`)** :
+     ```bash
+     export FRONTEND_URL="$(gcloud run services describe frontend --project="${FRONT_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
+     export BACKEND_URL="$(gcloud run services describe backend --project="${BACK_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
+     echo "Frontend URL : ${FRONTEND_URL}"
+     echo "Backend URL  : ${BACKEND_URL}"
+     ```
+     *(Pour `etudiant.test@gcp.telecom-paris.fr` : `FRONTEND_URL=https://frontend-2dg25e5jvq-ew.a.run.app` et `BACKEND_URL=https://backend-3oqe5uguta-ew.a.run.app`)*
+   - **Pourquoi l'URL `.a.run.app` brute renvoie `403 Forbidden` dans un navigateur** : la politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit `allUsers`, et Cloud Run attend un en-tête HTTP `Authorization: Bearer <ID_TOKEN>` (il ne déclenche pas de mire de connexion Google OAuth tant qu'Identity-Aware Proxy n'est pas configuré au Module 5).
+   - **Accéder à l'application dans votre navigateur (Modules 1 à 4 & Jour 4)** : lancez le proxy d'authentification Cloud Run :
+     ```bash
+     gcloud run services proxy frontend --project="${FRONT_PROJECT_ID}" --region="${REGION}" --port=8080
+     ```
+     Puis ouvrez :
+     - **Depuis Google Cloud Shell** : cliquez sur le bouton **Web Preview** (en haut à droite) $\rightarrow$ **Preview on port 8080** (qui ouvre `https://8080-${WEB_HOST}/` et `https://8080-${WEB_HOST}/admin`).
+     - **Depuis un terminal local** : ouvrez directement [http://localhost:8080/](http://localhost:8080/) (boutique) et [http://localhost:8080/admin](http://localhost:8080/admin) (portail d'administration listant les commandes Firestore).
+   - **Accéder à l'application dans votre navigateur via IAP (Module 5)** : une fois le Global External Application Load Balancer et IAP activés :
+     ```bash
+     LB_IP="$(gcloud compute addresses describe ip-frontend-lb --global --project="${FRONT_PROJECT_ID}" --format="value(address)")"
+     echo "Storefront : https://${LB_IP}.nip.io/"
+     echo "Admin IAP  : https://${LB_IP}.nip.io/admin"
+     ```
+   - **En ligne de commande (`curl` direct sur `$FRONTEND_URL`)** :
+     ```bash
+     curl -sS -H "Authorization: Bearer $(gcloud auth print-identity-token)" "${FRONTEND_URL}/health"
+     ```
 
 ## Programme des 4 Journées (8 Modules)
 
@@ -98,6 +119,23 @@ l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez de
     Data Protection (Cloud DLP `dlp-inspect-pii`, `dlp-deid-pii`) et Model Armor
     (`telp-ai-guardrail`).
 
+## Tableau de Bord Personnel de Progression (Student Progress Dashboard)
+
+Chaque étudiant ne voit **que ses propres journaux et résultats** (isolés par IAM sur un Managed Folder GCS dédié à votre compte `<votre-email>@gcp.telecom-paris.fr`). Chaque exécution de `./bin/lab-ctl` (`env`, `setup`, `verify`, `reset`, `cleanup`) met automatiquement à jour vos deux pages personnelles :
+
+- **Page Principale (Résultat du dernier test ou de la dernière commande)** :
+  `https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/<votre-email>/index.html`
+  *(URL exacte exportée dans `$STUDENT_DASHBOARD_URL` par `source <(./bin/lab-ctl env)` ; ex. pour le compte de test : [https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/etudiant.test@gcp.telecom-paris.fr/index.html](https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/etudiant.test@gcp.telecom-paris.fr/index.html))*
+- **Page Logs History (Historique complet de vos essais et commandes)** :
+  `https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/<votre-email>/history.html`
+  *(exportée dans `$STUDENT_LOGS_HISTORY_URL` ; ex. pour le compte de test : [https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/etudiant.test@gcp.telecom-paris.fr/history.html](https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/etudiant.test@gcp.telecom-paris.fr/history.html))*
+- **Consultation depuis Cloud Shell (CLI)** :
+  ```bash
+  echo "Page principale : ${STUDENT_DASHBOARD_URL}"
+  echo "Logs History    : ${STUDENT_LOGS_HISTORY_URL}"
+  gcloud storage cat "gs://telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/DASHBOARD.md"
+  ```
+
 ## Commandes Utiles (`./bin/lab-ctl`)
 
 ```bash
@@ -109,6 +147,9 @@ source <(./bin/lab-ctl env)
 
 # Vérifier votre configuration de sécurité et enregistrer votre score signé
 ./bin/lab-ctl verify --day=<1..4> --module=<1..8>
+
+# Réinitialiser les ressources et API d'un module à leur état pré-module
+./bin/lab-ctl reset --day=<1..4> --module=<1..8>
 
 # Nettoyer les ressources facturées à l'heure en fin de journée
 ./bin/lab-ctl cleanup --day=<1..4>
