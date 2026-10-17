@@ -22,7 +22,20 @@ Dans ce premier module, vous prenez en main votre **Landing Zone d'entreprise à
 
 ---
 
-## 2. Architecture Cible du Module 1
+## 2. Architecture Fil Rouge (Landing Zone à 4 Projets) & Cible du Module 1
+
+Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<slug>`) sous l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez d'une **Landing Zone d'entreprise à 4 projets pré-créés** qui isole strictement les responsabilités réseau, DMZ, données internes et SecOps tout au long des 4 journées :
+
+1. **`telp-<slug>-net` (`$NET_PROJECT_ID`) — Projet Hôte Réseau (Shared VPC Host)** :
+   Hébergera à partir du Jour 2 le réseau partagé `vpc-shared`, les sous-réseaux segmentés (`subnet-front`, `subnet-back`, `subnet-bastion`), Private Google Access, Cloud Router + Cloud NAT (`nat-gw`), Private Cloud DNS (`zone-internal`) et les règles de pare-feu. *(Au Jour 1, aucune API de charge de travail n'y est activée).*
+2. **`telp-<slug>-front` (`$FRONT_PROJECT_ID`) — Projet de Service DMZ (Exposition Publique)** :
+   Héberge le microservice Cloud Run `frontend` (ainsi qu'au Jour 3 le Global External Application Load Balancer `url-map-frontend`, Cloud Armor WAF `armor-frontend-waf` et Identity-Aware Proxy sur `/admin`).
+3. **`telp-<slug>-back` (`$BACK_PROJECT_ID`) — Projet de Service Interne (Données & IA)** :
+   Héberge le microservice Cloud Run `backend` (et `ai-assistant` au Jour 4), la VM de diagnostic `bastion` (`e2-micro` sans IP publique), la base Firestore Native `(default)`, le bucket GCS des reçus (`gs://$BACK_PROJECT_ID-receipts`), Secret Manager (`receipt-signing-secret`), Cloud DLP et Model Armor + Vertex AI.
+4. **`telp-<slug>-sec` (`$SEC_PROJECT_ID`) — Projet SecOps & Cryptographie Centrale** :
+   Centralisera à partir du Jour 3 les clés Cloud KMS CMEK (`kr-central/key-app-storage`), le bucket verrouillé des journaux d'audit (`gs://$SEC_PROJECT_ID-audit-logs` alimenté par le puits agrégé `sink-folder-audit`) et les alertes Cloud Monitoring. *(Au Jour 1, aucune API de charge de travail n'y est activée).*
+
+### Topologie Déployée au Module 1
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -60,21 +73,18 @@ Dans ce premier module, vous prenez en main votre **Landing Zone d'entreprise à
 
 ## 3. Étape 1 — Initialisation de l'Environnement (`env`, `setup`) & Premier Diagnostic (`verify`)
 
-1. Authentifiez vos Application Default Credentials (ADC) avec votre compte `@gcp.telecom-paris.fr` :
-
-   ```bash
-   gcloud auth application-default login --no-launch-browser
-   ```
-
-2. Découvrez vos 4 projets, liez automatiquement votre compte de facturation et exportez vos variables d'environnement :
+1. Depuis **Google Cloud Shell** (où votre session est déjà authentifiée automatiquement avec votre compte `@gcp.telecom-paris.fr`), découvrez vos 4 projets, liez automatiquement votre compte de facturation et exportez vos variables d'environnement :
 
    ```bash
    source <(./bin/lab-ctl env)
+   echo "Compte  : ${STUDENT_EMAIL}"
    echo "Dossier : folders/${FOLDER_ID} | Politique ACM : ${ACCESS_POLICY_ID}"
    echo "Projets : NET=${NET_PROJECT_ID} | FRONT=${FRONT_PROJECT_ID} | BACK=${BACK_PROJECT_ID} | SEC=${SEC_PROJECT_ID}"
    ```
 
-3. Initialisez l'état de départ du Module 1 et lancez une première vérification à blanc :
+   > **Note (Poste local hors Cloud Shell uniquement)** : Dans Google Cloud Shell, vous n'avez **pas** besoin d'exécuter `gcloud auth application-default login`. Si vous travaillez depuis un terminal local sur votre propre machine, exécutez `gcloud auth login` et `gcloud auth application-default login` avant `source <(./bin/lab-ctl env)`.
+
+2. Initialisez l'état de départ du Module 1 et lancez une première vérification à blanc :
 
    ```bash
    ./bin/lab-ctl setup --day=1 --module=1
@@ -82,8 +92,8 @@ Dans ce premier module, vous prenez en main votre **Landing Zone d'entreprise à
    ```
 
    > **Observation** : `lab-ctl verify` retourne un score initial de **`0 / 100`** (`[FAIL]` sur `M1-01` à `M1-04`) avec des indices de remédiation, et met immédiatement à jour votre tableau de bord personnel (isolé pour votre compte) :
-   > - **Page Principale (Résultat du dernier test/commande)** : `$STUDENT_DASHBOARD_URL` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/<votre-email>/index.html`)
-   > - **Page Logs History (Historique complet de vos journaux)** : `$STUDENT_LOGS_HISTORY_URL` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/<votre-email>/history.html`)
+   > - **Page Principale (Résultat du dernier test/commande)** : `$STUDENT_DASHBOARD_URL` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/index.html`)
+   > - **Page Logs History (Historique complet de vos journaux)** : `$STUDENT_LOGS_HISTORY_URL` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/history.html`)
 
 ---
 
@@ -228,24 +238,37 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
    echo "FRONTEND_URL=${FRONTEND_URL}"
    ```
 
-3. Testez l'application **TelP Secure Shop** (`frontend` et `backend`) :
-   * **Option A — Interface Graphique (Navigateur / Cloud Shell Web Preview)** :
-     Comme `constraints/iam.allowedPolicyMemberDomains` interdit `allUsers`, l'accès direct non authentifié à l'URL `.a.run.app` dans un navigateur renvoie `403 Forbidden`. Utilisez le proxy d'authentification Cloud Run qui injecte automatiquement votre jeton OIDC `@gcp.telecom-paris.fr` :
+3. **Vérifier l'accès à votre application *TelP Secure Shop* (Architecture du Module 1)** :
+   * **Récupérer vos URLs de service Cloud Run (`FRONTEND_URL` et `BACKEND_URL`)** :
+     ```bash
+     export FRONTEND_URL="$(gcloud run services describe frontend --project="${FRONT_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
+     export BACKEND_URL="$(gcloud run services describe backend --project="${BACK_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
+     echo "Frontend URL : ${FRONTEND_URL}"
+     echo "Backend URL  : ${BACKEND_URL}"
+     ```
+   * **Option A — Accès Graphique dans le Navigateur (`gcloud run services proxy` + Cloud Shell Web Preview)** :
+     La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit `allUsers`, et une URL Cloud Run `.a.run.app` brute attend un en-tête HTTP `Authorization: Bearer <ID_TOKEN>` (elle ne propose pas de mire de connexion OAuth dans le navigateur tant qu'Identity-Aware Proxy n'est pas mis en place au Module 5). Pour ouvrir la boutique dans votre navigateur, démarrez le proxy d'authentification Cloud Run :
      ```bash
      gcloud run services proxy frontend \
        --project="${FRONT_PROJECT_ID}" \
        --region="${REGION}" \
        --port=8080
      ```
-     Ouvrez ensuite **Web Preview -> Preview on port 8080** dans Google Cloud Shell (ou `http://localhost:8080` sur un poste local) pour afficher la boutique, passer une commande (`POST /checkout`), vérifier le reçu signé HMAC (`GET /receipts/{id}`) et consulter le portail `/admin`.
-   * **Option B — Ligne de Commande (`curl` + jeton OIDC)** :
+     * **Depuis Google Cloud Shell** : cliquez sur le bouton **Web Preview** (en haut à droite de Cloud Shell) $\rightarrow$ **Preview on port 8080** (ce qui ouvre `https://8080-${WEB_HOST}/` pour la boutique et `https://8080-${WEB_HOST}/admin` pour le portail d'administration listant les commandes Firestore).
+     * **Depuis un poste local** : ouvrez `http://localhost:8080/` et `http://localhost:8080/admin` dans votre navigateur.
+   * **Option B — Vérification de Bout en Bout en Ligne de Commande (`curl` + jeton OIDC)** :
      ```bash
      TOKEN="${LAB_CTL_IDENTITY_TOKEN:-$(gcloud auth print-identity-token)}"
      curl -sS -H "Authorization: Bearer ${TOKEN}" "${BACKEND_URL}/health"
      curl -sS -H "Authorization: Bearer ${TOKEN}" "${FRONTEND_URL}/health"
-     curl -sS -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-       -d '{"customer_name":"Etudiant Test","customer_email":"etudiant.test@gcp.telecom-paris.fr","amount_eur":49.90,"items":["yubikey-5c"]}' \
-       "${FRONTEND_URL}/checkout"
+
+     ORDER_JSON="$(curl -sS -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+       -d "{\"customer_name\":\"Etudiant Telecom\",\"customer_email\":\"${STUDENT_EMAIL}\",\"amount_eur\":49.90,\"items\":[\"yubikey-5c\"]}" \
+       "${FRONTEND_URL}/checkout")"
+     echo "${ORDER_JSON}"
+
+     ORDER_ID="$(echo "${ORDER_JSON}" | sed -n 's/.*"order_id":"\([^"]*\)".*/\1/p')"
+     curl -sS -H "Authorization: Bearer ${TOKEN}" "${FRONTEND_URL}/receipts/${ORDER_ID}"
      ```
 
 ---
