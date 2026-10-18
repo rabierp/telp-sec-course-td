@@ -81,7 +81,7 @@ tableau de bord personnel, dont l'URL est exportée dans la variable
 
 - **URL de votre Tableau de Bord Personnel (Page Principale)** :
   `https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/index.html`
-  *(L'historique complet de vos essais et commandes est accessible directement depuis cette page principale via le bouton **Logs History**, et inversement).*
+  *(L'historique complet de vos essais et commandes est accessible directement depuis cette page principale via le bouton **Logs History**, et inversement. Vos pages HTML de dashboard restent valides et accessibles avec votre compte `@gcp.telecom-paris.fr` jusqu'à fin novembre, même après le nettoyage de vos ressources de TP via `./bin/lab-ctl cleanup`).*
 - **Afficher l'URL de votre tableau de bord depuis Cloud Shell** :
 
   ```bash
