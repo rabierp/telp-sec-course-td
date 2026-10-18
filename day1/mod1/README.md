@@ -95,9 +95,8 @@ Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<account-id>`
    ./bin/lab-ctl verify --day=1 --module=1
    ```
 
-   > **Observation** : `lab-ctl verify` retourne un score initial de **`0 / 100`** (`[FAIL]` sur `M1-01` à `M1-04`) avec des indices de remédiation, et met immédiatement à jour votre tableau de bord personnel (isolé pour votre compte) :
-   > - **Page Principale (Résultat du dernier test/commande)** : `$STUDENT_DASHBOARD_URL` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/index.html`)
-   > - **Page Logs History (Historique complet de vos journaux)** : `$STUDENT_LOGS_HISTORY_URL` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/history.html`)
+   > **Observation** : `lab-ctl verify` retourne un score initial de **`0 / 100`** (`[FAIL]` sur `M1-01` à `M1-04`) avec des indices de remédiation, et met immédiatement à jour votre tableau de bord personnel (isolé pour votre compte, depuis lequel vous pouvez également naviguer vers le bouton **Logs History**) :
+   > - **Tableau de bord personnel** : `echo "${STUDENT_DASHBOARD_URL}"` (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/index.html`)
 
 ---
 

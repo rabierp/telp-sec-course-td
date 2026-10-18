@@ -380,9 +380,8 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
    ======================================================================
    ```
 
-2. Consultez votre tableau de bord personnel mis à jour :
-   * **Page Principale (Dernier résultat)** : `echo "${STUDENT_DASHBOARD_URL}"`
-   * **Page Logs History (Historique complet)** : `echo "${STUDENT_LOGS_HISTORY_URL}"`
+2. Consultez votre tableau de bord personnel mis à jour (depuis lequel le bouton **Logs History** donne accès à l'historique complet de vos essais) :
+   * **Tableau de bord personnel** : `echo "${STUDENT_DASHBOARD_URL}"`
 
 3. **En fin de Journée 1**, arrêtez la VM `bastion` pour économiser votre budget Cloud (tout en conservant vos services Cloud Run serverless à l'échelle zéro, vos comptes de service, votre base Firestore et votre bucket GCS pour le Jour 2) :
 

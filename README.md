@@ -75,22 +75,17 @@ rouge **TelP Secure Shop**, le binaire de vérification `./bin/lab-ctl` pour
 Chaque étudiant ne voit **que ses propres journaux et résultats** (isolés par
 IAM sur un Managed Folder GCS dédié à votre compte
 `<votre-email>@gcp.telecom-paris.fr`). Chaque exécution de `./bin/lab-ctl`
-(`env`, `setup`, `verify`, `reset`, `cleanup`) met automatiquement à jour vos
-deux pages personnelles, dont les URLs exactes sont exportées par
-`source <(./bin/lab-ctl env)` :
+(`env`, `setup`, `verify`, `reset`, `cleanup`) met automatiquement à jour votre
+tableau de bord personnel, dont l'URL est exportée dans la variable
+`$STUDENT_DASHBOARD_URL` par `source <(./bin/lab-ctl env)` :
 
-- **Page Principale (Résultat du dernier test ou de la dernière commande)** :
-  Variable `$STUDENT_DASHBOARD_URL`
-  (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/index.html`)
-- **Page Logs History (Historique complet de vos essais et commandes)** :
-  Variable `$STUDENT_LOGS_HISTORY_URL`
-  (`https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/history.html`)
-- **Afficher vos URLs personnelles ou consulter votre rapport depuis Cloud Shell** :
+- **URL de votre Tableau de Bord Personnel (Page Principale)** :
+  `https://storage.cloud.google.com/telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/index.html`
+  *(L'historique complet de vos essais et commandes est accessible directement depuis cette page principale via le bouton **Logs History**, et inversement).*
+- **Afficher l'URL de votre tableau de bord depuis Cloud Shell** :
 
   ```bash
-  echo "Page principale : ${STUDENT_DASHBOARD_URL}"
-  echo "Logs History    : ${STUDENT_LOGS_HISTORY_URL}"
-  gcloud storage cat "gs://telp-sec-central-791737865143/dashboard/students/${STUDENT_EMAIL}/DASHBOARD.md"
+  echo "Mon Dashboard : ${STUDENT_DASHBOARD_URL}"
   ```
 
 ## Commandes Utiles (`./bin/lab-ctl`)
