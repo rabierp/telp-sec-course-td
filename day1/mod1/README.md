@@ -142,6 +142,8 @@ Pour réduire la surface d'attaque du plan de contrôle GCP, seuls les services 
      --project="${BACK_PROJECT_ID}"
    ```
 
+   *(Note : Si vous relancez ce module après un `lab-ctl reset`, le message `ALREADY_EXISTS: Database already exists` est normal car la base `(default)` en `europe-west1` est conservée.)*
+
 2. **Test de cas limite (Résidence des données en Europe `constraints/gcp.resourceLocations`)** — Tentez de créer un bucket aux États-Unis (`us-central1`) :
 
    ```bash
@@ -223,9 +225,13 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
    echo "BACKEND_URL=${BACKEND_URL}"
    ```
 
-2. Dans `$FRONT_PROJECT_ID`, déployez **`frontend`** en pointant `BACKEND_URL` vers le service `backend` :
+2. Dans `$FRONT_PROJECT_ID`, assurez-vous que le compte de service Compute par défaut dispose du rôle `roles/editor` pour la baseline du Module 1, puis déployez **`frontend`** en pointant `BACKEND_URL` vers le service `backend` :
 
    ```bash
+   gcloud projects add-iam-policy-binding "${FRONT_PROJECT_ID}" \
+     --member="serviceAccount:${FRONT_PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+     --role="roles/editor"
+
    gcloud run deploy frontend \
      --image="europe-west1-docker.pkg.dev/telp-admin-central/telp-shop/frontend:latest" \
      --project="${FRONT_PROJECT_ID}" \
@@ -253,13 +259,11 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
      echo "Frontend URL : ${FRONTEND_URL}"
      echo "Backend URL  : ${BACKEND_URL}"
      ```
-   * **Option A — Accès Graphique dans le Navigateur (`gcloud run services proxy` + Cloud Shell Web Preview)** :
-     La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit `allUsers`, et une URL Cloud Run `.a.run.app` brute attend un en-tête HTTP `Authorization: Bearer <ID_TOKEN>` (elle ne propose pas de mire de connexion OAuth dans le navigateur tant qu'Identity-Aware Proxy n'est pas mis en place au Module 5). Pour ouvrir la boutique dans votre navigateur, démarrez le proxy d'authentification Cloud Run :
+   * **Option A — Accès Graphique dans le Navigateur (`./bin/lab-ctl proxy` ou `gcloud run services proxy` + Cloud Shell Web Preview)** :
+     La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit `allUsers`, et une URL Cloud Run `.a.run.app` brute attend un en-tête HTTP `Authorization: Bearer <ID_TOKEN>` (elle ne propose pas de mire de connexion OAuth dans le navigateur tant qu'Identity-Aware Proxy n'est pas mis en place au Module 5). Pour ouvrir la boutique dans votre navigateur, démarrez le proxy d'authentification intégré à `lab-ctl` (ou `gcloud run services proxy`) :
      ```bash
-     gcloud run services proxy frontend \
-       --project="${FRONT_PROJECT_ID}" \
-       --region="${REGION}" \
-       --port=8080
+     ./bin/lab-ctl proxy --port=8080
+     # (Alternative équivalente dans Cloud Shell : gcloud run services proxy frontend --project="${FRONT_PROJECT_ID}" --region="${REGION}" --port=8080)
      ```
      * **Depuis Google Cloud Shell** : cliquez sur le bouton **Web Preview** (en haut à droite de Cloud Shell) $\rightarrow$ **Preview on port 8080** (ce qui ouvre `https://8080-${WEB_HOST}/` pour la boutique et `https://8080-${WEB_HOST}/admin` pour le portail d'administration listant les commandes Firestore).
      * **Depuis un poste local** : ouvrez `http://localhost:8080/` et `http://localhost:8080/admin` dans votre navigateur.

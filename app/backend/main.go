@@ -374,7 +374,7 @@ func (g *gcpStorageStore) Ping(ctx context.Context, bucket string) error {
 	if err != nil {
 		return err
 	}
-	u := fmt.Sprintf("https://storage.googleapis.com/storage/v1/b/%s", url.PathEscape(bucket))
+	u := fmt.Sprintf("https://storage.googleapis.com/storage/v1/b/%s/o?maxResults=1", url.PathEscape(bucket))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return err

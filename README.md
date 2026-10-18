@@ -105,4 +105,7 @@ source <(./bin/lab-ctl env)
 
 # Nettoyer les ressources facturées à l'heure en fin de journée
 ./bin/lab-ctl cleanup --day=<1..4>
+
+# Démarrer un proxy local authentifié (OIDC) vers le service Cloud Run frontend (port 8080 par défaut)
+./bin/lab-ctl proxy --port=8080
 ```

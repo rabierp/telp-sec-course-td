@@ -223,26 +223,26 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
      --role="roles/editor"
    ```
 
-   > **Vérification intermédiaire** : Exécutez `./bin/lab-ctl verify --day=1 --module=2`. Les contrôles **`M2-01`**, **`M2-02`** et **`M2-03`** doivent désormais passer à **`[PASS]`** (`75 / 100 points`).
+   > **Vérification intermédiaire** : Patientez ~20 secondes pour la propagation IAM du nouveau compte de service `sa-frontend` sur Cloud Run, puis exécutez `./bin/lab-ctl verify --day=1 --module=2`. Les contrôles **`M2-01`**, **`M2-02`** et **`M2-03`** doivent désormais passer à **`[PASS]`** (`75 / 100 points`).
 
 ---
 
-## 6. Étape 4 — Audit et Suppression des Clés Statiques (`USER_MANAGED`) & Activation d'OS Login (`M2-04`)
+## 6. Étape 4 — Audit et Suppression des Clés Statiques (`USER_MANAGED`), des Comptes Obsolètes & Activation d'OS Login (`M2-04`)
 
 Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecteurs de compromission sur le Cloud. Toutes les charges de travail GCP doivent utiliser des jetons éphémères fournis par le serveur de métadonnées, et l'accès SSH aux VMs doit passer par **OS Login** (lié à l'identité IAM) plutôt que par des clés SSH statiques dans les métadonnées.
 
-> **Pourquoi une clé `USER_MANAGED` a-t-elle pu être créée au `setup` du Module 2 ?**
-> Trois contraintes d'organisation distinctes gouvernent les comptes de service sur GCP :
-> 1. `constraints/iam.disableServiceAccountCreation` (**non activée**) : autorise la création des comptes de service dédiés (`sa-frontend`, `sa-backend`, `sa-bastion`).
+> **Politiques d'organisation gouvernant les comptes de service et leurs clés sur GCP** :
+> 1. `constraints/iam.disableServiceAccountCreation` (**non activée**) : autorise la création des comptes de service dédiés (`sa-frontend`, `sa-backend`, `sa-bastion`) requis pour isoler les charges de travail.
 > 2. `constraints/iam.disableServiceAccountKeyUpload` (**activée sur `Students`**) : interdit l'import de clés publiques externes (`keys upload`).
-> 3. `constraints/iam.disableServiceAccountKeyCreation` (**exemptée sur `Students` pour les besoins du TP**) : laissée ouverte afin que `./bin/lab-ctl setup --day=1 --module=2` puisse injecter un compte historique (`sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com`) doté d'une clé `USER_MANAGED` active que vous devez identifier et supprimer ci-dessous.
+> 3. `constraints/iam.managed.disableServiceAccountKeyCreation` (**activée par défaut par Google Cloud Secure-by-Default**) : bloque la génération de nouvelles clés JSON exportables (`keys create`). Par ailleurs, `./bin/lab-ctl setup --day=1 --module=2` a injecté un compte de service historique non utilisé (`sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com`) que vous devez identifier et supprimer lors de votre audit IAM.
 
-1. Auditez l'ensemble des comptes de service sur vos **4 projets** (`$NET_PROJECT_ID`, `$FRONT_PROJECT_ID`, `$BACK_PROJECT_ID`, `$SEC_PROJECT_ID`) pour identifier toute clé `USER_MANAGED` :
+1. Auditez l'ensemble des comptes de service et d'éventuelles clés `USER_MANAGED` sur vos **4 projets** (`$NET_PROJECT_ID`, `$FRONT_PROJECT_ID`, `$BACK_PROJECT_ID`, `$SEC_PROJECT_ID`) :
 
    ```bash
    for proj in "${NET_PROJECT_ID}" "${FRONT_PROJECT_ID}" "${BACK_PROJECT_ID}" "${SEC_PROJECT_ID}"; do
      echo "=== Projet : ${proj} ==="
      for sa in $(gcloud iam service-accounts list --project="${proj}" --format="value(email)"); do
+       echo "SA: ${sa}"
        gcloud iam service-accounts keys list \
          --iam-account="${sa}" \
          --project="${proj}" \
@@ -252,7 +252,18 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
    done
    ```
 
-2. Supprimez toutes les clés `USER_MANAGED` identifiées (notamment celle présente sur `sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com`) :
+2. **Test de cas limite (`constraints/iam.managed.disableServiceAccountKeyCreation`)** — Tentez de générer une clé JSON statique sur le compte `sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com` :
+
+   ```bash
+   gcloud iam service-accounts keys create /tmp/legacy-key.json \
+     --iam-account="sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com" \
+     --project="${BACK_PROJECT_ID}"
+   rm -f /tmp/legacy-key.json
+   ```
+
+   > **Résultat attendu (`FAILED_PRECONDITION: Operation denied by org policy ... ["constraints/iam.managed.disableServiceAccountKeyCreation"]`)** : La contrainte managée bloque toute création de clé statique exportable (`CUSTOM_ORG_POLICY_VIOLATION`).
+
+3. Supprimez toute clé `USER_MANAGED` éventuelle ainsi que le compte de service historique inutilisé `sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com` :
 
    ```bash
    for proj in "${NET_PROJECT_ID}" "${FRONT_PROJECT_ID}" "${BACK_PROJECT_ID}" "${SEC_PROJECT_ID}"; do
@@ -264,11 +275,17 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
            --project="${proj}" \
            --quiet
        done
+       if [[ "${sa}" == "sa-legacy-export@${proj}.iam.gserviceaccount.com" ]]; then
+         echo "Suppression du compte de service obsolète ${sa} (${proj})..."
+         gcloud iam service-accounts delete "${sa}" \
+           --project="${proj}" \
+           --quiet
+       fi
      done
    done
    ```
 
-3. Activez **OS Login** à l'échelle du projet `$BACK_PROJECT_ID` :
+4. Activez **OS Login** à l'échelle du projet `$BACK_PROJECT_ID` :
 
    ```bash
    gcloud compute project-info add-metadata \
@@ -289,46 +306,54 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
    echo "BACKEND_URL  = ${BACKEND_URL}"
    ```
 
-2. **Test d'isolation du `backend` (preuve que l'accès direct utilisateur est désormais bloqué)** — Tentez d'appeler directement `BACKEND_URL/health` avec votre propre jeton d'identité `@gcp.telecom-paris.fr` :
+2. **Test d'isolation OIDC du `backend` (preuve que les autres charges de travail et le domaine global sont bloqués)** — Récupérez un jeton OIDC émis par le serveur de métadonnées de la VM `bastion` (identité `sa-bastion@${BACK_PROJECT_ID}.iam.gserviceaccount.com`) et tentez d'invoquer directement `BACKEND_URL/health` :
 
    ```bash
+   BASTION_OIDC_TOKEN="$(gcloud compute ssh bastion \
+     --project="${BACK_PROJECT_ID}" \
+     --zone="${ZONE}" \
+     --tunnel-through-iap \
+     --quiet \
+     --command="curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${BACKEND_URL}'" | tr -d '\r\n')"
+
    curl -i -s \
-     -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+     -H "Authorization: Bearer ${BASTION_OIDC_TOKEN}" \
      "${BACKEND_URL}/health" | head -n 12
    ```
 
-   > **Résultat attendu (`HTTP/2 403 Forbidden`)** : Contrairement au Module 1, même un utilisateur authentifié du domaine `@gcp.telecom-paris.fr` ne peut plus invoquer directement le microservice interne `backend`. Seul le compte de service `sa-frontend@${FRONT_PROJECT_ID}.iam.gserviceaccount.com` possède `roles/run.invoker`.
+   > **Résultat attendu (`HTTP/2 403 Forbidden`)** : Contrairement au Module 1, la liaison `domain:gcp.telecom-paris.fr` a été supprimée et seul le compte de service `sa-frontend@${FRONT_PROJECT_ID}.iam.gserviceaccount.com` possède `roles/run.invoker` sur `backend`. Toute autre charge de travail (comme `sa-bastion`, ou `frontend` si `USE_OIDC_AUTH=false`) ou tout autre utilisateur du domaine `@gcp.telecom-paris.fr` reçoit un **`HTTP/2 403 Forbidden`**.
+   > *(Note pédagogique sur l'héritage IAM : Si vous appelez `${BACKEND_URL}/health` avec votre propre jeton utilisateur personnel `gcloud auth print-identity-token`, l'appel passe car votre compte étudiant détient `roles/owner` au niveau du projet parent `$BACK_PROJECT_ID`, ce qui inclut la permission `run.services.invoke` par héritage hiérarchique IAM).*
 
 3. **Test de bout en bout via `frontend` (avec jeton OIDC `sa-frontend` vers `backend`)** :
 
    ```bash
-   # 1. Santé du frontend (et vérification de sa connexion OIDC vers le backend)
-   curl -s -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+   TOKEN="${LAB_CTL_IDENTITY_TOKEN:-$(gcloud auth print-identity-token)}"
+
+   # 1. Santé du frontend
+   curl -s -H "Authorization: Bearer ${TOKEN}" \
      "${FRONTEND_URL}/health" ; echo
 
    # 2. Création d'une commande (frontend -> OIDC token sa-frontend -> backend -> Firestore + GCS UBLA)
    ORDER_JSON="$(curl -s -X POST "${FRONTEND_URL}/checkout" \
-     -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+     -H "Authorization: Bearer ${TOKEN}" \
      -H "Content-Type: application/json" \
      -d '{"customer_name":"Alice Telecom","customer_email":"alice@gcp.telecom-paris.fr","amount_eur":42.50,"items":["Zero-Trust IAM Guide"]}')"
    echo "${ORDER_JSON}"
 
    # 3. Lecture du reçu signé depuis le bucket GCS (avec UBLA activé) via sa-backend
    ORDER_ID="$(echo "${ORDER_JSON}" | sed -n 's/.*"order_id":"\([^"]*\)".*/\1/p')"
-   curl -s -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+   curl -s -H "Authorization: Bearer ${TOKEN}" \
      "${FRONTEND_URL}/receipts/${ORDER_ID}" ; echo
    ```
 
-4. **Accès visuel depuis votre navigateur (Cloud Shell Web Preview)** :
+4. **Accès visuel depuis votre navigateur (`./bin/lab-ctl proxy` ou `gcloud run services proxy` + Cloud Shell Web Preview)** :
 
    ```bash
-   gcloud run services proxy frontend \
-     --project="${FRONT_PROJECT_ID}" \
-     --region="${REGION}" \
-     --port=8080
+   ./bin/lab-ctl proxy --port=8080
+   # (Alternative équivalente dans Cloud Shell : gcloud run services proxy frontend --project="${FRONT_PROJECT_ID}" --region="${REGION}" --port=8080)
    ```
 
-   Cliquez ensuite sur l'icône **Web Preview** (Aperçu sur le Web) en haut à droite de Google Cloud Shell $\rightarrow$ **Preview on port 8080** pour visualiser l'interface graphique **TelP Secure Shop** et passer une commande de test, puis appuyez sur `Ctrl+C` pour arrêter le proxy.
+   Cliquez ensuite sur l'icône **Web Preview** (Aperçu sur le Web) en haut à droite de Google Cloud Shell $\rightarrow$ **Preview on port 8080** pour visualiser l'interface graphique **TelP Secure Shop** (`/` et `/admin`) et passer une commande de test, puis appuyez sur `Ctrl+C` pour arrêter le proxy.
 
 5. **Test de connexion SSH à la VM `bastion` sans IP publique via Tunnel TCP IAP & OS Login** :
    * Assurez-vous que la règle de pare-feu IAP `allow-iap-ssh-bootstrap` (`35.235.240.0/20` $\rightarrow$ `tcp:22`) créée au Module 1 est bien présente sur `vpc-bootstrap` (ou créez-la si vous ne l'aviez pas encore ajoutée), puis connectez-vous en SSH à `bastion` via `--tunnel-through-iap` :
@@ -350,11 +375,18 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
      --zone="${ZONE}" \
      --tunnel-through-iap \
      --command="id && echo -n 'Service Account VM : ' && curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email ; echo"
+
+   # Vérification des seuls rôles IAM accordés à sa-bastion sur le projet back :
+   gcloud projects get-iam-policy "${BACK_PROJECT_ID}" \
+     --flatten="bindings[].members" \
+     --filter="bindings.members:serviceAccount:sa-bastion@${BACK_PROJECT_ID}.iam.gserviceaccount.com" \
+     --format="table(bindings.role)"
    ```
 
    > **Observations par rapport au Module 1** :
-   > 1. **OS Login actif** : `id` affiche votre compte POSIX créé dynamiquement à partir de votre identité Cloud Identity `@gcp.telecom-paris.fr` (sans injection de clé SSH statique dans les métadonnées de la VM).
-   > 2. **Moindre privilège (`sa-bastion`)** : Le serveur de métadonnées retourne désormais `sa-bastion@${BACK_PROJECT_ID}.iam.gserviceaccount.com` (et non plus le compte Compute par défaut doté de `roles/editor`). Si vous tentez de lister le bucket des reçus depuis l'intérieur de `bastion` (`gcloud compute ssh bastion --project="${BACK_PROJECT_ID}" --zone="${ZONE}" --tunnel-through-iap --command="gcloud storage ls gs://${BACK_PROJECT_ID}-receipts"`), l'accès est refusé (`HTTPError 403`) car `sa-bastion` ne détient que `roles/logging.logWriter` et `roles/monitoring.metricWriter`.
+   > 1. **OS Login actif** : `id` affiche votre compte POSIX créé dynamiquement à partir de votre identité Cloud Identity `@gcp.telecom-paris.fr` (sans injection de clé SSH statique dans les métadonnées `ssh-keys` du projet ou de la VM).
+   > 2. **Moindre privilège (`sa-bastion`)** : Le serveur de métadonnées retourne désormais `sa-bastion@${BACK_PROJECT_ID}.iam.gserviceaccount.com` (et non plus le compte Compute par défaut doté de `roles/editor`), et la politique IAM du projet confirme que `sa-bastion` ne détient que `roles/logging.logWriter` et `roles/monitoring.metricWriter` (aucun accès à Firestore ni à Cloud Storage).
+   > *(Note : Au Jour 1, la VM `bastion` n'a pas d'IP publique et le sous-réseau `subnet-bootstrap` n'a pas encore Private Google Access ni Cloud NAT ; vous configurerez Private Google Access et Cloud NAT sur le Shared VPC au Jour 2 — Modules 3 & 4).*
 
 ---
 
