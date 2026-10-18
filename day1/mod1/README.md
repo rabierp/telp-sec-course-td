@@ -24,22 +24,22 @@ Dans ce premier module, vous prenez en main votre **Landing Zone d'entreprise à
 
 ## 2. Architecture Fil Rouge (Landing Zone à 4 Projets) & Cible du Module 1
 
-Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<slug>`) sous l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez d'une **Landing Zone d'entreprise à 4 projets pré-créés** qui isole strictement les responsabilités réseau, DMZ, données internes et SecOps tout au long des 4 journées :
+Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<account-id>`) sous l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), vous disposez d'une **Landing Zone d'entreprise à 4 projets pré-créés** qui isole strictement les responsabilités réseau, DMZ, données internes et SecOps tout au long des 4 journées :
 
-1. **`telp-<slug>-net` (`$NET_PROJECT_ID`) — Projet Hôte Réseau (Shared VPC Host)** :
+1. **`telp-<account-id>-net` (`$NET_PROJECT_ID`) — Projet Hôte Réseau (Shared VPC Host)** :
    Hébergera à partir du Jour 2 le réseau partagé `vpc-shared`, les sous-réseaux segmentés (`subnet-front`, `subnet-back`, `subnet-bastion`), Private Google Access, Cloud Router + Cloud NAT (`nat-gw`), Private Cloud DNS (`zone-internal`) et les règles de pare-feu. *(Au Jour 1, aucune API de charge de travail n'y est activée).*
-2. **`telp-<slug>-front` (`$FRONT_PROJECT_ID`) — Projet de Service DMZ (Exposition Publique)** :
+2. **`telp-<account-id>-front` (`$FRONT_PROJECT_ID`) — Projet de Service DMZ (Exposition Publique)** :
    Héberge le microservice Cloud Run `frontend` (ainsi qu'au Jour 3 le Global External Application Load Balancer `url-map-frontend`, Cloud Armor WAF `armor-frontend-waf` et Identity-Aware Proxy sur `/admin`).
-3. **`telp-<slug>-back` (`$BACK_PROJECT_ID`) — Projet de Service Interne (Données & IA)** :
+3. **`telp-<account-id>-back` (`$BACK_PROJECT_ID`) — Projet de Service Interne (Données & IA)** :
    Héberge le microservice Cloud Run `backend` (et `ai-assistant` au Jour 4), la VM de diagnostic `bastion` (`e2-micro` sans IP publique), la base Firestore Native `(default)`, le bucket GCS des reçus (`gs://$BACK_PROJECT_ID-receipts`), Secret Manager (`receipt-signing-secret`), Cloud DLP et Model Armor + Vertex AI.
-4. **`telp-<slug>-sec` (`$SEC_PROJECT_ID`) — Projet SecOps & Cryptographie Centrale** :
+4. **`telp-<account-id>-sec` (`$SEC_PROJECT_ID`) — Projet SecOps & Cryptographie Centrale** :
    Centralisera à partir du Jour 3 les clés Cloud KMS CMEK (`kr-central/key-app-storage`), le bucket verrouillé des journaux d'audit (`gs://$SEC_PROJECT_ID-audit-logs` alimenté par le puits agrégé `sink-folder-audit`) et les alertes Cloud Monitoring. *(Au Jour 1, aucune API de charge de travail n'y est activée).*
 
 ### Topologie Déployée au Module 1
 
 ```
 +-----------------------------------------------------------------------------------+
-| Dossier Étudiant (folders/$FOLDER_ID — Students/student-<slug>)                   |
+| Dossier Étudiant (folders/$FOLDER_ID — Students/student-<account-id>)             |
 | Org Policies: allowedPolicyMemberDomains | publicAccessPrevention | vmExternalIp  |
 |                                                                                   |
 |  +----------------------------------+       +----------------------------------+  |
