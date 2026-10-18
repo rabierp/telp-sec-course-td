@@ -351,6 +351,32 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
      --shielded-integrity-monitoring
    ```
 
+5. **Comment tester et se connecter en SSH à la VM `bastion` sans adresse IP publique ? (Tunnel TCP IAP)** :
+   * Puisque `constraints/compute.vmExternalIpAccess` interdit toute adresse IP publique sur la VM, la connexion SSH s'effectue via **Identity-Aware Proxy (IAP) TCP Forwarding** (`--tunnel-through-iap`), qui encapsule le flux SSH dans HTTPS depuis votre terminal jusqu'aux proxys internes de Google (`35.235.240.0/20`), lesquels joignent l'IP privée (`10.0.1.x:22`) de la VM.
+   * **Note sur l'API IAP au Jour 1** : Le transfert TCP IAP vers une VM Compute Engine utilise la permission IAM `iap.tunnelInstances.accessViaIAP` (déjà incluse dans votre rôle `roles/owner` sur `$BACK_PROJECT_ID`) et **ne nécessite pas** d'activer l'API `iap.googleapis.com` (qui ne sera activée qu'au Jour 3 Module 5 pour protéger le Load Balancer HTTP/HTTPS).
+   * En revanche, comme `vpc-bootstrap` a été créé en mode personnalisé (`--subnet-mode=custom`), il ne comporte aucune règle de pare-feu entrante par défaut. Créez la règle de pare-feu autorisant `tcp:22` uniquement depuis la plage Google IAP (`35.235.240.0/20`), puis testez la connexion SSH à `bastion` :
+
+   ```bash
+   gcloud compute firewall-rules create allow-iap-ssh-bootstrap \
+     --project="${BACK_PROJECT_ID}" \
+     --network=vpc-bootstrap \
+     --direction=INGRESS \
+     --action=ALLOW \
+     --rules=tcp:22 \
+     --source-ranges="35.235.240.0/20"
+
+   gcloud compute ssh bastion \
+     --project="${BACK_PROJECT_ID}" \
+     --zone="europe-west1-b" \
+     --tunnel-through-iap \
+     --command="hostname && curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email ; echo"
+   ```
+
+   > **Observation de sécurité (à corriger au Module 2)** :
+   > - La connexion SSH fonctionne sans aucune adresse IP publique sur `bastion`.
+   > - Lors de cette première connexion, `gcloud compute ssh` affiche `Updating project ssh metadata...` car **OS Login** n'est pas encore activé (des clés SSH statiques sont injectées dans les métadonnées).
+   > - Le serveur de métadonnées de la VM retourne `<BACK_PROJECT_NUMBER>-compute@developer.gserviceaccount.com` : la VM `bastion` s'exécute avec le compte de service Compute Engine par défaut doté du rôle **`roles/editor`** sur tout le projet `$BACK_PROJECT_ID` ! Vous remédierez à ces deux failles (`sa-bastion` dédié et `enable-oslogin=TRUE`) dans le **Module 2**.
+
 ---
 
 ## 8. Étape 6 — Validation Finale (`100 / 100`) & Commandes de Gestion du Cycle de Vie (`cleanup`, `reset`)

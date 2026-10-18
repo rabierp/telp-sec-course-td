@@ -85,6 +85,10 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
 
 ## 4. Étape 2 — Création des Comptes de Service Dédiés & Moindre Privilège sur les Données (`M2-01` & `M2-03`)
 
+> **Distinction importante — Comptes de service personnalisés vs. Clés `USER_MANAGED` et Politiques d'Organisation** :
+> - **Créer un compte de service dédié (`gcloud iam service-accounts create`)** est la bonne pratique d'isolation des identités sur GCP (la contrainte `constraints/iam.disableServiceAccountCreation` n'est **pas** activée). Chaque charge de travail (`frontend`, `backend`, `bastion`) s'authentifie alors sans clé statique via les jetons OAuth2/OIDC éphémères du serveur de métadonnées local (`http://metadata.google.internal`).
+> - **Exporter ou importer une clé statique de compte de service (`USER_MANAGED` key)** est en revanche une pratique à proscrire : sur le dossier `Students`, l'import de clés externes (`constraints/iam.disableServiceAccountKeyUpload`) est bloqué par politique d'organisation, tandis que la création de clés (`constraints/iam.disableServiceAccountKeyCreation`) a été volontairement laissée ouverte uniquement pour permettre à `./bin/lab-ctl setup --day=1 --module=2` d'injecter une clé `USER_MANAGED` historique à auditer et révoquer à l'Étape 4 (`M2-04`).
+
 1. Créez les 3 comptes de service dédiés dans leurs projets respectifs :
 
    ```bash
@@ -227,6 +231,12 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
 
 Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecteurs de compromission sur le Cloud. Toutes les charges de travail GCP doivent utiliser des jetons éphémères fournis par le serveur de métadonnées, et l'accès SSH aux VMs doit passer par **OS Login** (lié à l'identité IAM) plutôt que par des clés SSH statiques dans les métadonnées.
 
+> **Pourquoi une clé `USER_MANAGED` a-t-elle pu être créée au `setup` du Module 2 ?**
+> Trois contraintes d'organisation distinctes gouvernent les comptes de service sur GCP :
+> 1. `constraints/iam.disableServiceAccountCreation` (**non activée**) : autorise la création des comptes de service dédiés (`sa-frontend`, `sa-backend`, `sa-bastion`).
+> 2. `constraints/iam.disableServiceAccountKeyUpload` (**activée sur `Students`**) : interdit l'import de clés publiques externes (`keys upload`).
+> 3. `constraints/iam.disableServiceAccountKeyCreation` (**exemptée sur `Students` pour les besoins du TP**) : laissée ouverte afin que `./bin/lab-ctl setup --day=1 --module=2` puisse injecter un compte historique (`sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com`) doté d'une clé `USER_MANAGED` active que vous devez identifier et supprimer ci-dessous.
+
 1. Auditez l'ensemble des comptes de service sur vos **4 projets** (`$NET_PROJECT_ID`, `$FRONT_PROJECT_ID`, `$BACK_PROJECT_ID`, `$SEC_PROJECT_ID`) pour identifier toute clé `USER_MANAGED` :
 
    ```bash
@@ -268,7 +278,7 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
 
 ---
 
-## 7. Étape 5 — Vérification de l'Accès à l'Application & Preuve d'Isolation OIDC
+## 7. Étape 5 — Vérification de l'Accès à l'Application, Preuve d'Isolation OIDC & Test SSH de la VM `bastion` (IAP + OS Login)
 
 1. Récupérez les URLs de vos deux services Cloud Run :
 
@@ -319,6 +329,32 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
    ```
 
    Cliquez ensuite sur l'icône **Web Preview** (Aperçu sur le Web) en haut à droite de Google Cloud Shell $\rightarrow$ **Preview on port 8080** pour visualiser l'interface graphique **TelP Secure Shop** et passer une commande de test, puis appuyez sur `Ctrl+C` pour arrêter le proxy.
+
+5. **Test de connexion SSH à la VM `bastion` sans IP publique via Tunnel TCP IAP & OS Login** :
+   * Assurez-vous que la règle de pare-feu IAP `allow-iap-ssh-bootstrap` (`35.235.240.0/20` $\rightarrow$ `tcp:22`) créée au Module 1 est bien présente sur `vpc-bootstrap` (ou créez-la si vous ne l'aviez pas encore ajoutée), puis connectez-vous en SSH à `bastion` via `--tunnel-through-iap` :
+
+   ```bash
+   # Si la règle allow-iap-ssh-bootstrap n'avait pas été créée au Module 1 :
+   gcloud compute firewall-rules describe allow-iap-ssh-bootstrap --project="${BACK_PROJECT_ID}" >/dev/null 2>&1 || \
+     gcloud compute firewall-rules create allow-iap-ssh-bootstrap \
+       --project="${BACK_PROJECT_ID}" \
+       --network=vpc-bootstrap \
+       --direction=INGRESS \
+       --action=ALLOW \
+       --rules=tcp:22 \
+       --source-ranges="35.235.240.0/20"
+
+   # Connexion SSH via IAP + OS Login et vérification de l'identité de la VM (sa-bastion)
+   gcloud compute ssh bastion \
+     --project="${BACK_PROJECT_ID}" \
+     --zone="${ZONE}" \
+     --tunnel-through-iap \
+     --command="id && echo -n 'Service Account VM : ' && curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email ; echo"
+   ```
+
+   > **Observations par rapport au Module 1** :
+   > 1. **OS Login actif** : `id` affiche votre compte POSIX créé dynamiquement à partir de votre identité Cloud Identity `@gcp.telecom-paris.fr` (sans injection de clé SSH statique dans les métadonnées de la VM).
+   > 2. **Moindre privilège (`sa-bastion`)** : Le serveur de métadonnées retourne désormais `sa-bastion@${BACK_PROJECT_ID}.iam.gserviceaccount.com` (et non plus le compte Compute par défaut doté de `roles/editor`). Si vous tentez de lister le bucket des reçus depuis l'intérieur de `bastion` (`gcloud compute ssh bastion --project="${BACK_PROJECT_ID}" --zone="${ZONE}" --tunnel-through-iap --command="gcloud storage ls gs://${BACK_PROJECT_ID}-receipts"`), l'accès est refusé (`HTTPError 403`) car `sa-bastion` ne détient que `roles/logging.logWriter` et `roles/monitoring.metricWriter`.
 
 ---
 
