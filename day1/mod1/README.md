@@ -2,7 +2,11 @@
 
 * **Durée estimée** : 1h30
 * **Région cible** : `europe-west1` (Zone : `europe-west1-b`)
-* **Projets concernés** : `$NET_PROJECT_ID`, `$FRONT_PROJECT_ID`, `$BACK_PROJECT_ID`, `$SEC_PROJECT_ID`
+* **Projets utilisés pour les charges de travail au Jour 1** : `$FRONT_PROJECT_ID` (`telp-<account-id>-front`), `$BACK_PROJECT_ID` (`telp-<account-id>-back`)
+* **Projets non utilisés à cette étape (aucune API de charge de travail activée)** :
+  * `$NET_PROJECT_ID` (`telp-<account-id>-net`) : réservé au réseau partagé (**Shared VPC Host**), qui ne sera déployé qu'à partir du **Jour 2 (Module 3)**.
+  * `$SEC_PROJECT_ID` (`telp-<account-id>-sec`) : réservé au chiffrement centralisé **Cloud KMS (CMEK)** et au stockage immuable des journaux d'audit (**WORM**), qui ne seront mis en œuvre qu'à partir du **Jour 3 (Module 6)**.
+  * *(Au Jour 1, ces deux projets ont uniquement leur compte de facturation lié et l'API de plan de contrôle `iam.googleapis.com` pré-activée ; aucune API de charge de travail comme `compute`, `dns`, `cloudkms` ou `storage` ne doit y être activée).*
 
 ---
 
@@ -119,7 +123,11 @@ Pour réduire la surface d'attaque du plan de contrôle GCP, seuls les services 
      --project="${BACK_PROJECT_ID}"
    ```
 
-   > **Important** : Ne **pas** activer d'API de charge de travail sur `$NET_PROJECT_ID` ou `$SEC_PROJECT_ID` au Jour 1, ni d'API des Jours 2 à 4 (`dns`, `iap`, `secretmanager`, `cloudkms`, `securitycenter`, `dlp`, `modelarmor`, `aiplatform`). Si vous activez prématurément une API d'un jour ultérieur, le contrôle `M1-01` la détectera et échouera.
+   > **Pourquoi aucune API de charge de travail n'est activée sur `$NET_PROJECT_ID` et `$SEC_PROJECT_ID` à cette étape ?**
+   > Conformément au principe de **moindre activation des services (Least Service Enablement)**, une API ne doit être activée sur un projet qu'au moment où une ressource de ce projet en a effectivement besoin :
+   > - **`$NET_PROJECT_ID` (`telp-<account-id>-net`)** n'est **pas utilisé au Jour 1** (la VM `bastion` utilise temporairement un VPC d'amorçage local dans `$BACK_PROJECT_ID`). Le projet `$NET_PROJECT_ID` n'entrera en jeu qu'au **Jour 2 (Modules 3 & 4)** lors de la mise en place du **Shared VPC Host**, de Cloud NAT et de Private Cloud DNS.
+   > - **`$SEC_PROJECT_ID` (`telp-<account-id>-sec`)** n'est **pas utilisé au Jour 1** (les données utilisent le chiffrement par défaut Google-managed). Il n'entrera en jeu qu'au **Jour 3 (Module 6)** pour héberger les clés **Cloud KMS CMEK** (`kr-central/key-app-storage`), le bucket verrouillé des journaux d'audit (`gs://$SEC_PROJECT_ID-audit-logs`) et les alertes Cloud Monitoring.
+   > - Activer prématurément des API sur `$NET_PROJECT_ID` ou `$SEC_PROJECT_ID` (ou activer des API des Jours 2 à 4 comme `dns`, `iap`, `secretmanager`, `cloudkms`, `securitycenter`, `dlp`, `modelarmor`, `aiplatform`) élargirait inutilement la surface d'attaque et fera échouer le contrôle **`M1-01`**.
 
 ---
 
