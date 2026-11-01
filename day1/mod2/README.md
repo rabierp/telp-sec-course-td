@@ -68,7 +68,7 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
 
    ```bash
    source <(./bin/lab-ctl env)
-   echo "Compte  : ${STUDENT_EMAIL}"
+   echo "Compte  : ${STUDENT_EMAIL} (ACCOUNT_ID=${ACCOUNT_ID})"
    echo "Projets : FRONT=${FRONT_PROJECT_ID} | BACK=${BACK_PROJECT_ID} | NET=${NET_PROJECT_ID} | SEC=${SEC_PROJECT_ID}"
    ```
 

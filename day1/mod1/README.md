@@ -81,7 +81,7 @@ Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<account-id>`
 
    ```bash
    source <(./bin/lab-ctl env)
-   echo "Compte  : ${STUDENT_EMAIL} | Région : ${REGION} (Zone : ${ZONE})"
+   echo "Compte  : ${STUDENT_EMAIL} (ACCOUNT_ID=${ACCOUNT_ID}) | Région : ${REGION} (Zone : ${ZONE})"
    echo "Dossier : folders/${FOLDER_ID} | Politique ACM : ${ACCESS_POLICY_ID}"
    echo "Projets : NET=${NET_PROJECT_ID} | FRONT=${FRONT_PROJECT_ID} (${FRONT_PROJECT_NUMBER}) | BACK=${BACK_PROJECT_ID} (${BACK_PROJECT_NUMBER}) | SEC=${SEC_PROJECT_ID}"
    gcloud resource-manager org-policies list --folder="${FOLDER_ID}"

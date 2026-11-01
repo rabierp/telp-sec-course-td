@@ -53,10 +53,11 @@ Dans ce **Module 3**, vous allez :
 
 ## 3. Étape 1 — Initialisation du Module 3 (`env`, `setup`) & Activation des APIs Réseau
 
-1. Depuis **Google Cloud Shell**, chargez vos variables d'environnement et préparez le Module 3 :
+1. Depuis **Google Cloud Shell**, chargez vos variables d'environnement (`$ACCOUNT_ID`, `$FOLDER_ID`, `$ACCESS_POLICY_ID`, et vos 4 projets) et préparez le Module 3 :
 
    ```bash
    source <(./bin/lab-ctl env)
+   echo "Compte  : ${STUDENT_EMAIL} (ACCOUNT_ID=${ACCOUNT_ID})"
    ./bin/lab-ctl setup --day=2 --module=3
    ./bin/lab-ctl verify --day=2 --module=3
    ```
@@ -81,6 +82,8 @@ Dans ce **Module 3**, vous allez :
      --role="roles/run.serviceAgent" --quiet >/dev/null
    ```
 
+   > **Note — Pourquoi `gcloud beta services identity create` ?** : Sur un projet GCP où aucun connecteur réseau Cloud Run n'a encore été utilisé, le Service Agent `service-<PROJECT_NUMBER>@serverless-robot-prod.iam.gserviceaccount.com` peut être provisionné de manière paresseuse (*lazy*). Forcer sa création dès maintenant vous permet de lui accorder `roles/compute.networkUser` sur les sous-réseaux partagés à l'Étape 3 avant même la mise à jour des services Cloud Run.
+   >
    > **Attention** : N'activez **pas** `compute.googleapis.com` sur `$SEC_PROJECT_ID` (le projet SecOps ne doit héberger aucune instance ni aucun réseau VPC).
 
 ---
@@ -132,6 +135,8 @@ Dans ce **Module 3**, vous allez :
      --no-enable-private-ip-google-access \
      --no-enable-flow-logs
    ```
+
+   > **Note (en cas de réinitialisation via `lab-ctl reset --day=2 --module=3`)** : Si vous aviez déjà attaché vos services Cloud Run à `subnet-front` et `subnet-back` auparavant, Google Cloud Run conserve une réservation d'adresses IP internes (`/28` `PURPOSE: SERVERLESS`) pendant environ 1 heure après le détachement, ce qui empêche la suppression immédiate de `vpc-shared`, `subnet-front` et `subnet-back` lors d'un `reset`. Dans ce cas, ignorez le message `already exists` sur `vpc-shared`, `subnet-front` et `subnet-back` (leurs paramètres PGA/Flow Logs ont déjà été remis à zéro par `reset`) et créez simplement `subnet-bastion`.
 
 ---
 
@@ -188,6 +193,8 @@ Dans ce **Module 3**, vous allez :
        --role="roles/compute.networkUser"
    done
    ```
+
+   > **Note** : Sur `subnet-bastion`, `user:${STUDENT_EMAIL}` est requis car la commande `gcloud compute instances create` vérifie la permission `compute.subnetworks.use` de l'appelant humain au moment de la création de l'instance dans un Service Project, tandis que `compute-system` et `cloudservices` sont les deux Service Agents Compute Engine susceptibles d'allouer l'interface réseau interne selon l'opération.
 
 2. **Expérience négative (Preuve d'isolation inter-tiers)** — Tentez d'attacher le service `frontend` (du projet `$FRONT_PROJECT_ID`) au sous-réseau `subnet-back` (réservé au projet `$BACK_PROJECT_ID`) :
 
@@ -282,6 +289,7 @@ Dans ce **Module 3**, vous allez :
      --scopes="https://www.googleapis.com/auth/cloud-platform" \
      --image-family=debian-12 \
      --image-project=debian-cloud \
+     --metadata="enable-oslogin=TRUE" \
      --shielded-secure-boot \
      --shielded-vtpm \
      --shielded-integrity-monitoring
@@ -305,7 +313,8 @@ Dans ce **Module 3**, vous allez :
 
    ```bash
    export BACKEND_URL="$(gcloud run services describe backend --project="${BACK_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
-   curl -i -s -H "Authorization: Bearer $(gcloud auth print-identity-token)" "${BACKEND_URL}/health" | head -n 12
+   TOKEN="${LAB_CTL_IDENTITY_TOKEN:-$(gcloud auth print-identity-token)}"
+   curl -i -s -H "Authorization: Bearer ${TOKEN}" "${BACKEND_URL}/health" | head -n 12
    ```
 
    > **Résultat attendu (`HTTP/2 404` / `403` par Google Front End)** : La requête est désormais rejetée au niveau réseau avant même l'évaluation IAM, car l'appel ne provient pas du Shared VPC `vpc-shared`.

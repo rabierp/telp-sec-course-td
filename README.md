@@ -51,7 +51,7 @@ rouge **TelP Secure Shop**, le binaire de vérification `./bin/lab-ctl` pour
   - [Module 4 (`day2/mod4`)](./day2/mod4/README.md) : Private Google Access
     (PGA), Cloud NAT avec journalisation, Private Cloud DNS (`zone-internal`) et
     périmètre VPC Service Controls (VPC-SC) englobant vos projets.
-- **Jour 3 — Protection Edge (WAF/IAP), Cryptographie KMS & Journalisation SecOps**
+- **[Jour 3 — Protection Edge (WAF/IAP), Cryptographie KMS & Journalisation SecOps](./day3/README.md)**
   - [Module 5 (`day3/mod5`)](./day3/mod5/README.md) : Global External
     Application Load Balancer, restriction d'ingress Cloud Run, Cloud Armor WAF
     (`sqli-v33-stable`, `xss-v33-stable`, limitation de débit) et IAP sur
@@ -94,7 +94,7 @@ Chaque journée de cours comporte **2 modules qui s'enchaînent** sur la même i
 
 | Commande | Quand l'utiliser ? | Ce qu'elle fait exactement |
 | :--- | :--- | :--- |
-| `source <(./bin/lab-ctl env)` | **À l'ouverture de chaque session Cloud Shell** | Découvre vos 4 projets (`$NET_PROJECT_ID`, `$FRONT_PROJECT_ID`, `$BACK_PROJECT_ID`, `$SEC_PROJECT_ID`), votre dossier (`$FOLDER_ID`) et votre politique ACM (`$ACCESS_POLICY_ID`), lie automatiquement votre compte de facturation, et exporte toutes les variables shell du TP. |
+| `source <(./bin/lab-ctl env)` | **À l'ouverture de chaque session Cloud Shell** | Découvre vos 4 projets (`$NET_PROJECT_ID`, `$FRONT_PROJECT_ID`, `$BACK_PROJECT_ID`, `$SEC_PROJECT_ID`), votre identifiant (`$ACCOUNT_ID`), votre dossier (`$FOLDER_ID`) et votre politique ACM (`$ACCESS_POLICY_ID`), lie automatiquement votre compte de facturation, et exporte toutes les variables shell du TP. |
 | `./bin/lab-ctl setup --day=X --module=Y` | **Systématiquement au début de chaque module `Y`** (Étape 1) | Prépare l'état initial du module `Y` sans détruire votre avancement : redémarre la VM `bastion` si elle avait été arrêtée par le `cleanup` de la veille, injecte les éléments d'audit du module (ex. `sa-legacy-export` au Module 2) et active les prérequis techniques du module. |
 | `./bin/lab-ctl verify --day=X --module=Y` | **Au début, pendant, et à la fin du module `Y`** | Évalue les 4 contrôles de sécurité du module `Y` (`4 x 25 = 100 pts`), affiche des indices en cas d'échec, et enregistre votre score signé Ed25519 sur votre Dashboard. *(Note : une fois passé au module `Y+1` qui modifie l'architecture en place, c'est `verify` du module `Y+1` qui fait foi ; votre score `100/100` acquis au module `Y` reste définitivement conservé sur votre Dashboard).* |
 | `./bin/lab-ctl cleanup --day=X` | **UNIQUEMENT en toute fin de Journée `X`, après avoir validé le 2e module du jour** (`mod2`, `mod4`, `mod6`, `mod8`) | **Ne l'exécutez PAS après le 1er module de la journée (`mod1`, `mod3`, `mod5`, `mod7`) !** Le 2e module du jour réutilise immédiatement les ressources actives du 1er module (notamment la VM `bastion`). Exécuté en fin de journée après le 2e module, `cleanup --day=X` arrête les ressources facturées à l'heure (VM `bastion`, passerelle Cloud NAT `nat-gw`) pour économiser votre crédit de 50 \$ entre deux séances. |

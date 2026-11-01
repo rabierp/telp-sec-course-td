@@ -14,7 +14,7 @@ Au **Jour 2**, vous mettez en œuvre une **architecture réseau Zero-Trust multi
    - Diagnostic du timeout de `POST /checkout` provoqué par `--vpc-egress=all-traffic` lorsque **Private Google Access (PGA)** est désactivé, puis activation de **PGA** sur `subnet-front`, `subnet-back` et `subnet-bastion` pour rétablir l'accès privé aux APIs Google et l'invocation interne de `backend` sans passer par Internet.
    - Déploiement d'un **Cloud Router (`router-nat`)** et d'une passerelle **Cloud NAT (`nat-gw`)** avec journalisation complète (`--log-filter=ALL`) sur `vpc-shared` pour permettre aux instances sans IP publique (`bastion`) d'accéder de manière contrôlée et tracée aux dépôts externes (`https://deb.debian.org`).
    - Création d'une zone **Cloud DNS privée (`zone-internal` — `internal.telp.local.`)** liée à `vpc-shared` et vérification de la résolution DNS interne depuis `bastion`.
-   - Enceinte des **4 projets étudiants (`net`, `front`, `back`, `sec`)** dans un **périmètre VPC Service Controls (`perim_student_${PERIM_SLUG}`)** sous votre politique d'accès déléguée **`$ACCESS_POLICY_ID`**, protégeant `storage.googleapis.com`, `firestore.googleapis.com` et `cloudkms.googleapis.com` contre toute exfiltration vers des projets externes.
+   - Enceinte des **4 projets étudiants (`net`, `front`, `back`, `sec`)** dans un **périmètre VPC Service Controls (`perim_student_${ACCOUNT_ID}`)** sous votre politique d'accès déléguée **`$ACCESS_POLICY_ID`**, protégeant `storage.googleapis.com`, `firestore.googleapis.com` et `cloudkms.googleapis.com` contre toute exfiltration vers des projets externes.
 
 ---
 
