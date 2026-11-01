@@ -18,12 +18,18 @@ Au **Jour 2**, vous mettez en œuvre une **architecture réseau Zero-Trust multi
 
 ---
 
-## Maîtrise des Coûts en Fin de Journée 2 (`cleanup --day=2`)
+## Cycle de Vie de la Journée 2 & Usage de `./bin/lab-ctl` (`setup`, `verify`, `cleanup`, `reset`)
 
-Une fois vos vérifications des Modules 3 et 4 validées à **`100 / 100 points`**, exécutez en fin de séance :
+1. **Au début du Module 3 (`setup`)** : Exécutez `source <(./bin/lab-ctl env)` puis `./bin/lab-ctl setup --day=2 --module=3` (qui active les API réseau du Jour 2 et prépare les Service Agents Cloud Run).
+2. **À la fin du Module 3 (`verify`, PAS de `cleanup` ni de `reset` !)** : Validez votre score `100 / 100` avec `./bin/lab-ctl verify --day=2 --module=3`, puis enchaînez **directement** sur le **Module 4** sans exécuter `cleanup --day=2` (car le Module 4 s'appuie immédiatement sur `vpc-shared`, ses 3 sous-réseaux et la VM `bastion` en cours d'exécution).
+3. **Au début du Module 4 (`setup`)** : Exécutez `./bin/lab-ctl setup --day=2 --module=4` (qui s'assure que `bastion` est démarrée et active les API Cloud DNS et Access Context Manager).
+4. **En toute fin de Journée 2 uniquement (`cleanup --day=2` après le Module 4)** : Une fois le **Module 4** validé à **`100 / 100 points`** (`./bin/lab-ctl verify --day=2 --module=4`), exécutez :
 
 ```bash
 ./bin/lab-ctl cleanup --day=2
 ```
 
-> **Important** : Exécutez toujours `./bin/lab-ctl verify --day=2 --module=4` **avant** `./bin/lab-ctl cleanup --day=2`, car la commande `cleanup --day=2` arrête la VM `bastion` et supprime la passerelle `nat-gw` ainsi que le routeur `router-nat` afin d'économiser les coûts horaires entre deux séances de cours.
+> **Quand utiliser `cleanup` vs `reset` vs `setup` ?**
+> - **`setup --day=2 --module=<3|4>`** : À exécuter systématiquement **au début** de chaque module pour préparer son état initial.
+> - **`cleanup --day=2`** : À exécuter **uniquement à la fin du 2e module de la journée (Module 4)**, toujours **après** `./bin/lab-ctl verify --day=2 --module=4`, car `cleanup --day=2` arrête la VM `bastion` et supprime la passerelle `nat-gw` ainsi que le routeur `router-nat` (facturés à l'heure) entre deux séances de cours.
+> - **`reset --day=2 --module=<3|4>`** : **Optionnel (uniquement en cas d'erreur)**. Ne l'exécutez jamais lors d'une progression normale ; utilisez-le seulement si vous souhaitez annuler vos modifications d'un module pour le recommencer à zéro (suivi de `./bin/lab-ctl setup --day=2 --module=<3|4>`).

@@ -205,7 +205,7 @@ Si Private Google Access couvre les APIs Google, il ne route **pas** le trafic v
 
 > **Pourquoi inclure vos 4 projets (`net`, `front`, `back`, `sec`) et `cloudkms.googleapis.com` dès aujourd'hui ?**
 > - Au **Jour 3 (Module 6)**, le bucket `gs://$BACK_PROJECT_ID-receipts` (dans `back`) utilisera une clé de chiffrement CMEK hébergée dans `sec`, et le puits de logs d'audit enverra les journaux vers un bucket WORM dans `sec`. En plaçant dès maintenant les **4 projets** dans le même périmètre VPC-SC (`perim_student_${PERIM_SLUG}`), toutes les communications internes entre `front`, `back`, `net` et `sec` sont autorisées nativement à l'intérieur du périmètre, tandis que toute tentative de copie vers un projet extérieur est bloquée.
-> - **Attention** : Ne restreignez **pas** `artifactregistry.googleapis.com` dans le périmètre VPC-SC, car vos services Cloud Run tirent leurs images conteneurs depuis le registre central du cours (`europe-west1-docker.pkg.dev/telp-sec-admin-01/...`) situé hors de votre périmètre.
+> - **Attention** : Ne restreignez **pas** `artifactregistry.googleapis.com` dans le périmètre VPC-SC, car vos services Cloud Run tirent leurs images conteneurs depuis le registre central du cours (`europe-west1-docker.pkg.dev/telp-admin-central/telp-shop/...`) situé hors de votre périmètre.
 
 1. Construisez votre identifiant de périmètre normalisé (en remplaçant les tirets `-` par des underscores `_`, exigence de nommage d'Access Context Manager) et créez votre **Access Level (`al_student_${PERIM_SLUG}`)** sous votre politique d'accès déléguée `$ACCESS_POLICY_ID` :
    *(Important : incluez votre compte étudiant ainsi que `user:pascal.rabier@gcp.telecom-paris.fr` afin que vos commandes depuis Cloud Shell et l'audit d'évaluation puissent entrer dans le périmètre).*
@@ -291,8 +291,12 @@ Si Private Google Access couvre les APIs Google, il ne route **pas** le trafic v
 2. Consultez votre tableau de bord personnel mis à jour :
    * **Tableau de bord personnel** : `echo "${STUDENT_DASHBOARD_URL}"`
 
-3. **En fin de Journée 2**, après avoir validé vos 100/100 points sur les Modules 3 et 4, exécutez la commande de nettoyage pour arrêter la VM `bastion` et supprimer la passerelle `nat-gw` (`router-nat`), qui sont facturées à l'heure :
+3. **Nettoyage de fin de Journée 2 (`cleanup --day=2`)** — Le Module 4 étant le **second et dernier module de la Journée 2**, après avoir validé vos `100 / 100 points` sur les Modules 3 et 4, exécutez la commande de nettoyage pour arrêter la VM `bastion` et supprimer la passerelle `nat-gw` (`router-nat`), qui sont facturées à l'heure :
 
    ```bash
    ./bin/lab-ctl cleanup --day=2
    ```
+
+   > **Rappel (`cleanup` vs `reset`)** :
+   > - Exécutez toujours `./bin/lab-ctl verify --day=2 --module=4` **avant** `./bin/lab-ctl cleanup --day=2` (car `cleanup --day=2` supprime `nat-gw` et `router-nat` vérifiés par `M4-02` et arrête `bastion` afin de préserver votre crédit Cloud entre le Jour 2 et le Jour 3 ; votre score `100/100` validé avant le `cleanup` reste quant à lui définitivement acquis sur votre Dashboard).
+   > - N'exécutez **pas** `./bin/lab-ctl reset --day=2 --module=4` en fin de journée (`reset` ne sert qu'en cas d'erreur de manipulation pour supprimer le périmètre VPC-SC, le DNS privé et Cloud NAT afin de recommencer le Module 4 à zéro).

@@ -81,9 +81,10 @@ Dans votre dossier dédié `folders/$FOLDER_ID` (`Students/student-<account-id>`
 
    ```bash
    source <(./bin/lab-ctl env)
-   echo "Compte  : ${STUDENT_EMAIL}"
+   echo "Compte  : ${STUDENT_EMAIL} | Région : ${REGION} (Zone : ${ZONE})"
    echo "Dossier : folders/${FOLDER_ID} | Politique ACM : ${ACCESS_POLICY_ID}"
-   echo "Projets : NET=${NET_PROJECT_ID} | FRONT=${FRONT_PROJECT_ID} | BACK=${BACK_PROJECT_ID} | SEC=${SEC_PROJECT_ID}"
+   echo "Projets : NET=${NET_PROJECT_ID} | FRONT=${FRONT_PROJECT_ID} (${FRONT_PROJECT_NUMBER}) | BACK=${BACK_PROJECT_ID} (${BACK_PROJECT_NUMBER}) | SEC=${SEC_PROJECT_ID}"
+   gcloud resource-manager org-policies list --folder="${FOLDER_ID}"
    ```
 
    > **Note (Poste local hors Cloud Shell uniquement)** : Dans Google Cloud Shell, vous n'avez **pas** besoin d'exécuter `gcloud auth application-default login`. Si vous travaillez depuis un terminal local sur votre propre machine, exécutez `gcloud auth login` et `gcloud auth application-default login` avant `source <(./bin/lab-ctl env)`.
@@ -225,6 +226,9 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
    echo "BACKEND_URL=${BACKEND_URL}"
    ```
 
+   > **Note technique (Pourquoi autoriser à la fois `domain:gcp.telecom-paris.fr` et le compte Compute par défaut de `$FRONT_PROJECT_ID` au Module 1 ?)** :
+   > Lorsqu'un utilisateur appelle `frontend` avec son propre jeton `Authorization: Bearer $(gcloud auth print-identity-token)`, le proxy Google Frontend (GFE) de Cloud Run valide ce jeton puis **supprime sa signature cryptographique** (`SIGNATURE_REMOVED_BY_GOOGLE`) avant de transmettre la requête au conteneur `frontend` pour empêcher toute réutilisation de votre jeton personnel par un service tiers. En mode `USE_OIDC_AUTH=false` (Module 1), `frontend` détecte cette suppression de signature et obtient un jeton depuis son serveur de métadonnées local (qui s'exécute au Module 1 sous le compte Compute par défaut `${FRONT_PROJECT_NUMBER}-compute@developer.gserviceaccount.com`). Au **Module 2**, vous remplacerez ces deux accès permissifs par une authentification OIDC dédiée (`USE_OIDC_AUTH=true` avec `sa-frontend`).
+
 2. Dans `$FRONT_PROJECT_ID`, assurez-vous que le compte de service Compute par défaut dispose du rôle `roles/editor` pour la baseline du Module 1, puis déployez **`frontend`** en pointant `BACKEND_URL` vers le service `backend` :
 
    ```bash
@@ -252,13 +256,6 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
    ```
 
 3. **Vérifier l'accès à votre application *TelP Secure Shop* (Architecture du Module 1)** :
-   * **Récupérer vos URLs de service Cloud Run (`FRONTEND_URL` et `BACKEND_URL`)** :
-     ```bash
-     export FRONTEND_URL="$(gcloud run services describe frontend --project="${FRONT_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
-     export BACKEND_URL="$(gcloud run services describe backend --project="${BACK_PROJECT_ID}" --region="${REGION}" --format="value(status.url)")"
-     echo "Frontend URL : ${FRONTEND_URL}"
-     echo "Backend URL  : ${BACKEND_URL}"
-     ```
    * **Option A — Accès Graphique dans le Navigateur (`./bin/lab-ctl proxy` ou `gcloud run services proxy` + Cloud Shell Web Preview)** :
      La politique d'organisation `constraints/iam.allowedPolicyMemberDomains` interdit `allUsers`, et une URL Cloud Run `.a.run.app` brute attend un en-tête HTTP `Authorization: Bearer <ID_TOKEN>` (elle ne propose pas de mire de connexion OAuth dans le navigateur tant qu'Identity-Aware Proxy n'est pas mis en place au Module 5). Pour ouvrir la boutique dans votre navigateur, démarrez le proxy d'authentification intégré à `lab-ctl` (ou `gcloud run services proxy`) :
      ```bash
@@ -307,7 +304,7 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
    ```bash
    gcloud compute instances create bastion \
      --project="${BACK_PROJECT_ID}" \
-     --zone="europe-west1-b" \
+     --zone="${ZONE}" \
      --machine-type=e2-micro \
      --network=vpc-bootstrap \
      --subnet=subnet-bootstrap \
@@ -325,7 +322,7 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
    ```bash
    gcloud compute instances create bastion \
      --project="${BACK_PROJECT_ID}" \
-     --zone="europe-west1-b" \
+     --zone="${ZONE}" \
      --machine-type=e2-micro \
      --network=vpc-bootstrap \
      --subnet=subnet-bootstrap \
@@ -342,7 +339,7 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
    ```bash
    gcloud compute instances create bastion \
      --project="${BACK_PROJECT_ID}" \
-     --zone="europe-west1-b" \
+     --zone="${ZONE}" \
      --machine-type=e2-micro \
      --network=vpc-bootstrap \
      --subnet=subnet-bootstrap \
@@ -370,7 +367,7 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
 
    gcloud compute ssh bastion \
      --project="${BACK_PROJECT_ID}" \
-     --zone="europe-west1-b" \
+     --zone="${ZONE}" \
      --tunnel-through-iap \
      --command="hostname && curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email ; echo"
    ```
@@ -382,7 +379,7 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
 
 ---
 
-## 8. Étape 6 — Validation Finale (`100 / 100`) & Commandes de Gestion du Cycle de Vie (`cleanup`, `reset`)
+## 8. Étape 6 — Validation Finale du Module 1 (`100 / 100`) & Transition vers le Module 2
 
 1. Validez l'ensemble des 4 contrôles du Module 1 (`M1-01` à `M1-04`) :
 
@@ -390,14 +387,9 @@ La politique d'organisation `constraints/compute.skipDefaultNetworkCreation` emp
    ./bin/lab-ctl verify --day=1 --module=1
    ```
 
-   Vous devez obtenir **`Total Score: 100 / 100 points (All Passed: true)`**.
+   Vous devez obtenir **`Total Score: 100 / 100 points (All Passed: true)`**. Passez ensuite **directement** au **[Module 2 (`day1/mod2`)](../mod2/README.md)**.
 
-2. **Gestion des coûts et du cycle de vie (`cleanup` et `reset`)** :
-   * **En fin de journée (`cleanup`)** : Pour arrêter la VM `bastion` et éviter toute consommation horaire inutile entre deux séances :
-     ```bash
-     ./bin/lab-ctl cleanup --day=1
-     ```
-   * **Réinitialisation complète d'un module (`reset`)** : Si vous souhaitez réinitialiser les ressources et API du Module 1 à leur état pré-module pour recommencer l'exercice :
-     ```bash
-     ./bin/lab-ctl reset --day=1 --module=1
-     ```
+2. **Rappel sur les commandes de cycle de vie (`setup`, `verify`, `cleanup`, `reset`)** :
+   * **Faut-il exécuter `cleanup --day=1` à la fin du Module 1 ? NON !** Le nettoyage de fin de journée (`./bin/lab-ctl cleanup --day=1`) ne doit être exécuté qu'**à la toute fin de la Journée 1, après avoir terminé et validé le Module 2** (car `cleanup --day=1` arrête la VM `bastion` dont vous avez immédiatement besoin au Module 2).
+   * **Que devient mon score `100/100` du Module 1 quand je passe au Module 2 ?** Chaque commande `verify --day=X --module=Y` vérifie l'architecture cible à la fin du module `Y`. Au Module 2, vous allez durcir l'architecture en place (par exemple en passant `USE_OIDC_AUTH` de `false` à `true`) : c'est alors `verify --day=1 --module=2` qui fait foi, tandis que votre score `100/100` acquis au Module 1 reste définitivement conservé sur votre Dashboard.
+   * **Quand utiliser `reset --day=1 --module=1` ?** Uniquement en cas d'erreur de manipulation si vous souhaitez supprimer toutes les ressources du Module 1 pour recommencer le Module 1 à zéro (suivi de `./bin/lab-ctl setup --day=1 --module=1`). Ne l'exécutez **pas** avant de passer au Module 2 !

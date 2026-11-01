@@ -72,6 +72,13 @@ Dans ce **Module 3**, vous allez :
 
    gcloud beta services identity create --service=run.googleapis.com --project="${FRONT_PROJECT_ID}" || true
    gcloud beta services identity create --service=run.googleapis.com --project="${BACK_PROJECT_ID}" || true
+
+   gcloud projects add-iam-policy-binding "${FRONT_PROJECT_ID}" \
+     --member="serviceAccount:service-${FRONT_PROJECT_NUMBER}@serverless-robot-prod.iam.gserviceaccount.com" \
+     --role="roles/run.serviceAgent" --quiet >/dev/null
+   gcloud projects add-iam-policy-binding "${BACK_PROJECT_ID}" \
+     --member="serviceAccount:service-${BACK_PROJECT_NUMBER}@serverless-robot-prod.iam.gserviceaccount.com" \
+     --role="roles/run.serviceAgent" --quiet >/dev/null
    ```
 
    > **Attention** : N'activez **pas** `compute.googleapis.com` sur `$SEC_PROJECT_ID` (le projet SecOps ne doit héberger aucune instance ni aucun réseau VPC).
@@ -323,4 +330,6 @@ Dans ce **Module 3**, vous allez :
    ======================================================================
    ```
 
-   > **Transition vers le Module 4** : Si vous testez maintenant `POST /checkout` sur `frontend`, vous constaterez que l'appel échoue en **timeout (`502` / `504`)** ! En effet, `--vpc-egress=all-traffic` force tout le trafic sortant de `frontend` (`subnet-front`) et `backend` (`subnet-back`) à traverser `vpc-shared`, or `Private Google Access` est encore désactivé sur les sous-réseaux. Vous allez diagnostiquer et résoudre ce problème dès le début du **[Module 4](../mod4/README.md)**.
+   > **Transition vers le Module 4 (PAS de `cleanup` ni de `reset` entre les Modules 3 et 4 !)** :
+   > - Si vous testez maintenant `POST /checkout` sur `frontend`, vous constaterez que l'appel échoue en **timeout (`502` / `504`)** ! En effet, `--vpc-egress=all-traffic` force tout le trafic sortant de `frontend` (`subnet-front`) et `backend` (`subnet-back`) à traverser `vpc-shared`, or `Private Google Access` est encore désactivé sur les sous-réseaux. Vous allez diagnostiquer et résoudre ce problème dès le début du **[Module 4](../mod4/README.md)**.
+   > - **N'exécutez pas `./bin/lab-ctl cleanup --day=2` (ni `reset`) à la fin du Module 3** : enchaînez directement sur le **Module 4**, qui s'appuie sur `vpc-shared` et la VM `bastion` en cours d'exécution. Le `cleanup --day=2` ne s'exécute qu'à la toute fin de la Journée 2, après avoir validé le Module 4 (`reset --day=2 --module=3` n'étant utile qu'en cas d'erreur pour recommencer le Module 3 à zéro).

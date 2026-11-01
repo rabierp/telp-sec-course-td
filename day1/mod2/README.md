@@ -72,14 +72,14 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
    echo "Projets : FRONT=${FRONT_PROJECT_ID} | BACK=${BACK_PROJECT_ID} | NET=${NET_PROJECT_ID} | SEC=${SEC_PROJECT_ID}"
    ```
 
-2. Préparez l'état initial du Module 2 (qui injecte notamment une clé statique historique `USER_MANAGED` à auditer dans `$BACK_PROJECT_ID`) et lancez une première vérification :
+2. Préparez l'état initial du Module 2 (qui redémarre `bastion` si elle était arrêtée et injecte un compte de service historique inutilisé `sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com` à auditer dans `$BACK_PROJECT_ID`) et lancez une première vérification :
 
    ```bash
    ./bin/lab-ctl setup --day=1 --module=2
    ./bin/lab-ctl verify --day=1 --module=2
    ```
 
-   > **Observation** : Les 4 contrôles (`M2-01` à `M2-04`) affichent `[FAIL]` (`0 / 100 points`), en indiquant précisément les écarts IAM détectés sur vos ressources du Module 1 ainsi que la présence d'une clé `USER_MANAGED`.
+   > **Observation** : Les 4 contrôles (`M2-01` à `M2-04`) affichent `[FAIL]` (`0 / 100 points`), en indiquant précisément les écarts IAM détectés sur vos ressources du Module 1 ainsi que la présence du compte de service historique `sa-legacy-export` et l'absence d'OS Login.
 
 ---
 
@@ -87,7 +87,7 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
 
 > **Distinction importante — Comptes de service personnalisés vs. Clés `USER_MANAGED` et Politiques d'Organisation** :
 > - **Créer un compte de service dédié (`gcloud iam service-accounts create`)** est la bonne pratique d'isolation des identités sur GCP (la contrainte `constraints/iam.disableServiceAccountCreation` n'est **pas** activée). Chaque charge de travail (`frontend`, `backend`, `bastion`) s'authentifie alors sans clé statique via les jetons OAuth2/OIDC éphémères du serveur de métadonnées local (`http://metadata.google.internal`).
-> - **Exporter ou importer une clé statique de compte de service (`USER_MANAGED` key)** est en revanche une pratique à proscrire : sur le dossier `Students`, l'import de clés externes (`constraints/iam.disableServiceAccountKeyUpload`) est bloqué par politique d'organisation, tandis que la création de clés (`constraints/iam.disableServiceAccountKeyCreation`) a été volontairement laissée ouverte uniquement pour permettre à `./bin/lab-ctl setup --day=1 --module=2` d'injecter une clé `USER_MANAGED` historique à auditer et révoquer à l'Étape 4 (`M2-04`).
+> - **Exporter ou importer une clé statique de compte de service (`USER_MANAGED` key)** est en revanche une pratique à proscrire : sur le dossier `Students`, l'import de clés externes (`constraints/iam.disableServiceAccountKeyUpload`) et la création de nouvelles clés JSON statiques (`constraints/iam.managed.disableServiceAccountKeyCreation`) sont bloqués par politique d'organisation. Par ailleurs, `./bin/lab-ctl setup --day=1 --module=2` a injecté un compte de service d'export historique inutilisé (`sa-legacy-export@${BACK_PROJECT_ID}.iam.gserviceaccount.com`) que vous devrez identifier et supprimer à l'Étape 4 (`M2-04`).
 
 1. Créez les 3 comptes de service dédiés dans leurs projets respectifs :
 
@@ -112,7 +112,7 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
    export SA_BASTION="sa-bastion@${BACK_PROJECT_ID}.iam.gserviceaccount.com"
    ```
 
-2. Activez **Uniform Bucket-Level Access (UBLA)** sur le bucket des reçus `gs://${BACK_PROJECT_ID}-receipts`, révoquez le droit de lecture global du domaine `gcp.telecom-paris.fr` posé au Module 1, et accordez `roles/storage.objectAdmin` **uniquement sur ce bucket** à `sa-backend` :
+2. Activez **Uniform Bucket-Level Access (UBLA)** sur le bucket des reçus `gs://${BACK_PROJECT_ID}-receipts`, révoquez le droit de lecture global du domaine `gcp.telecom-paris.fr` posé au Module 1, et accordez `roles/storage.objectAdmin` (ou `roles/storage.objectUser`) **uniquement sur ce bucket** à `sa-backend` :
 
    ```bash
    gcloud storage buckets update "gs://${BACK_PROJECT_ID}-receipts" \
@@ -122,7 +122,7 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
    gcloud storage buckets remove-iam-policy-binding "gs://${BACK_PROJECT_ID}-receipts" \
      --member="domain:gcp.telecom-paris.fr" \
      --role="roles/storage.objectViewer" \
-     --project="${BACK_PROJECT_ID}"
+     --project="${BACK_PROJECT_ID}" || true
 
    gcloud storage buckets add-iam-policy-binding "gs://${BACK_PROJECT_ID}-receipts" \
      --member="serviceAccount:${SA_BACK}" \
@@ -130,7 +130,7 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
      --project="${BACK_PROJECT_ID}"
    ```
 
-   > **Attention (Moindre privilège sur Cloud Storage)** : N'accordez **pas** `roles/storage.admin` ni `roles/storage.objectAdmin` au niveau du projet `$BACK_PROJECT_ID`. Le droit `roles/storage.objectAdmin` doit être borné à la ressource `gs://${BACK_PROJECT_ID}-receipts`.
+   > **Attention (Moindre privilège sur Cloud Storage)** : N'accordez **pas** `roles/storage.admin`, `roles/storage.objectAdmin` ni `roles/storage.objectUser` au niveau du projet `$BACK_PROJECT_ID`. Le droit sur les objets (`roles/storage.objectAdmin` ou `roles/storage.objectUser`) doit être borné à la seule ressource `gs://${BACK_PROJECT_ID}-receipts`.
 
 3. Accordez à `sa-backend` le rôle `roles/datastore.user` sur `$BACK_PROJECT_ID` (pour lire et écrire les commandes dans Firestore Native), et accordez à `sa-bastion` uniquement les rôles de télémétrie (`roles/logging.logWriter` et `roles/monitoring.metricWriter`) :
 
@@ -192,13 +192,13 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
      --project="${BACK_PROJECT_ID}" \
      --region="${REGION}" \
      --member="domain:gcp.telecom-paris.fr" \
-     --role="roles/run.invoker"
+     --role="roles/run.invoker" || true
 
    gcloud run services remove-iam-policy-binding backend \
      --project="${BACK_PROJECT_ID}" \
      --region="${REGION}" \
      --member="serviceAccount:${FRONT_PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
-     --role="roles/run.invoker"
+     --role="roles/run.invoker" || true
    ```
 
 3. Mettez à jour le service Cloud Run **`frontend`** pour qu'il s'exécute sous l'identité `sa-frontend` et activez l'authentification OIDC inter-services (`USE_OIDC_AUTH=true`) :
@@ -216,11 +216,11 @@ Dans ce **Module 2**, vous ne redéployez pas de nouvelle infrastructure : vous 
    ```bash
    gcloud projects remove-iam-policy-binding "${FRONT_PROJECT_ID}" \
      --member="serviceAccount:${FRONT_PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
-     --role="roles/editor"
+     --role="roles/editor" || true
 
    gcloud projects remove-iam-policy-binding "${BACK_PROJECT_ID}" \
      --member="serviceAccount:${BACK_PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
-     --role="roles/editor"
+     --role="roles/editor" || true
    ```
 
    > **Vérification intermédiaire** : Patientez ~20 secondes pour la propagation IAM du nouveau compte de service `sa-frontend` sur Cloud Run, puis exécutez `./bin/lab-ctl verify --day=1 --module=2`. Les contrôles **`M2-01`**, **`M2-02`** et **`M2-03`** doivent désormais passer à **`[PASS]`** (`75 / 100 points`).
@@ -285,12 +285,23 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
    done
    ```
 
-4. Activez **OS Login** à l'échelle du projet `$BACK_PROJECT_ID` :
+4. Activez **OS Login** à l'échelle du projet `$BACK_PROJECT_ID` et supprimez toute clé SSH statique résiduelle injectée dans les métadonnées lors du Module 1 :
 
    ```bash
    gcloud compute project-info add-metadata \
      --project="${BACK_PROJECT_ID}" \
      --metadata="enable-oslogin=TRUE"
+
+   gcloud compute project-info remove-metadata \
+     --project="${BACK_PROJECT_ID}" \
+     --keys="ssh-keys" \
+     --quiet || true
+
+   gcloud compute instances remove-metadata bastion \
+     --project="${BACK_PROJECT_ID}" \
+     --zone="${ZONE}" \
+     --keys="enable-oslogin,ssh-keys" \
+     --quiet || true
    ```
 
 ---
@@ -314,14 +325,14 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
      --zone="${ZONE}" \
      --tunnel-through-iap \
      --quiet \
-     --command="curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${BACKEND_URL}'" | tr -d '\r\n')"
+     --command="curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${BACKEND_URL}'" | tail -n 1 | tr -d '\r\n')"
 
    curl -i -s \
      -H "Authorization: Bearer ${BASTION_OIDC_TOKEN}" \
      "${BACKEND_URL}/health" | head -n 12
    ```
 
-   > **Résultat attendu (`HTTP/2 403 Forbidden`)** : Contrairement au Module 1, la liaison `domain:gcp.telecom-paris.fr` a été supprimée et seul le compte de service `sa-frontend@${FRONT_PROJECT_ID}.iam.gserviceaccount.com` possède `roles/run.invoker` sur `backend`. Toute autre charge de travail (comme `sa-bastion`, ou `frontend` si `USE_OIDC_AUTH=false`) ou tout autre utilisateur du domaine `@gcp.telecom-paris.fr` reçoit un **`HTTP/2 403 Forbidden`**.
+   > **Résultat attendu (`HTTP/2 403 Forbidden`)** : Contrairement au Module 1, la liaison `domain:gcp.telecom-paris.fr` et celle du compte Compute par défaut ont été supprimées, et seul le compte de service `sa-frontend@${FRONT_PROJECT_ID}.iam.gserviceaccount.com` possède `roles/run.invoker` sur `backend`. Toute autre charge de travail (comme `sa-bastion`, ou l'ancien compte Compute par défaut `${FRONT_PROJECT_NUMBER}-compute@developer.gserviceaccount.com` si `USE_OIDC_AUTH=false`) ou tout autre utilisateur du domaine `@gcp.telecom-paris.fr` reçoit un **`HTTP/2 403 Forbidden`**.
    > *(Note pédagogique sur l'héritage IAM : Si vous appelez `${BACKEND_URL}/health` avec votre propre jeton utilisateur personnel `gcloud auth print-identity-token`, l'appel passe car votre compte étudiant détient `roles/owner` au niveau du projet parent `$BACK_PROJECT_ID`, ce qui inclut la permission `run.services.invoke` par héritage hiérarchique IAM).*
 
 3. **Test de bout en bout via `frontend` (avec jeton OIDC `sa-frontend` vers `backend`)** :
@@ -415,8 +426,12 @@ Les clés JSON exportées (`USER_MANAGED`) constituent l'un des principaux vecte
 2. Consultez votre tableau de bord personnel mis à jour (depuis lequel le bouton **Logs History** donne accès à l'historique complet de vos essais) :
    * **Tableau de bord personnel** : `echo "${STUDENT_DASHBOARD_URL}"`
 
-3. **En fin de Journée 1**, arrêtez la VM `bastion` pour économiser votre budget Cloud (tout en conservant vos services Cloud Run serverless à l'échelle zéro, vos comptes de service, votre base Firestore et votre bucket GCS pour le Jour 2) :
+3. **Nettoyage de fin de Journée 1 (`cleanup --day=1`)** — Le Module 2 étant le **second et dernier module de la Journée 1**, arrêtez maintenant la VM `bastion` pour économiser votre budget Cloud entre le Jour 1 et le Jour 2 (tout en conservant vos services Cloud Run serverless à l'échelle zéro, vos comptes de service, votre base Firestore et votre bucket GCS pour le Jour 2) :
 
    ```bash
    ./bin/lab-ctl cleanup --day=1
    ```
+
+   > **Rappel (`cleanup` vs `reset`)** :
+   > - **`./bin/lab-ctl cleanup --day=1`** arrête uniquement la VM `bastion` en fin de journée pour éviter toute facturation horaire jusqu'au Jour 2 (où `./bin/lab-ctl setup --day=2 --module=3` prendra le relais).
+   > - **`./bin/lab-ctl reset --day=1 --module=2`** ne doit **jamais** être exécuté en fin de journée : il sert uniquement, en cas de fausse manipulation pendant le TP, à annuler le durcissement IAM du Module 2 pour revenir à l'état de fin du Module 1 et recommencer le Module 2 (suivi de `./bin/lab-ctl setup --day=1 --module=2`).
