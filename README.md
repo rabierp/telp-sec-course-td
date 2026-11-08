@@ -60,14 +60,15 @@ rouge **TelP Secure Shop**, le binaire de vérification `./bin/lab-ctl` pour
     (`receipt-signing-secret`), chiffrement Cloud KMS CMEK inter-projets
     (`sec` -> `back`), puits de logs d'audit agrégé sur `folders/$FOLDER_ID`
     (`sink-folder-audit`) vers un bucket WORM verrouillé et alertes SIEM.
-- **Jour 4 — Conformité, Security Command Center (SCC) & Sécurité de l'IA (SAIF)**
-  - [Module 7 (`day4/mod7`)](./day4/mod7/README.md) : Résidence des données en Europe,
-    détection et remédiation des écarts de conformité Security Command Center
-    (rotation KMS à 90 jours dans `sec`, UBLA + Versioning dans `back`, VPC Flow
-    Logs sur `subnet-back` dans `net`).
-  - [Module 8 (`day4/mod8`)](./day4/mod8/README.md) : Sécurisation du
-    microservice `ai-assistant` (Vertex AI `gemini-2.5-flash`) avec Sensitive
-    Data Protection (Cloud DLP `dlp-inspect-pii`, `dlp-deid-pii`) et Model Armor
+- **[Jour 4 — Conformité Européenne, Security Command Center (SCC v2) & Sécurité de l'IA (SAIF)](./day4/README.md)**
+  - [Module 7 (`day4/mod7`)](./day4/mod7/README.md) : Audit de résidence des données en Europe,
+    découverte Security Command Center Standard v2 (`builtin-security-essentials`) &
+    Cloud Asset Inventory, et remédiation des dérives de posture (rotation KMS à 90 jours
+    dans `sec`, UBLA + Versioning dans `back`, VPC Flow Logs sur `subnet-back` dans `net`).
+  - [Module 8 (`day4/mod8`)](./day4/mod8/README.md) : Sécurisation de bout en bout du
+    microservice `ai-assistant` (Vertex AI `gemini-3.5-flash-lite` sur l'endpoint UE
+    `aiplatform.eu.rep.googleapis.com`) selon le cadre Google SAIF avec Sensitive Data
+    Protection (Cloud DLP `dlp-inspect-pii`, `dlp-deid-pii`) et Model Armor
     (`telp-ai-guardrail`).
 
 ## Tableau de Bord Personnel de Progression (Student Progress Dashboard)

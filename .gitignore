@@ -2,5 +2,8 @@
 .env
 *.key
 *.pem
+*.crt
+adc*.json
+*credentials*.json
 *.json.bak
 .DS_Store

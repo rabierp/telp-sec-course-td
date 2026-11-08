@@ -32,7 +32,7 @@ func NewFrontendServer(cfg FrontendConfig) *FrontendServer {
 	}
 	return &FrontendServer{
 		cfg:    cfg,
-		client: &http.Client{Timeout: 10 * time.Second},
+		client: &http.Client{Timeout: 25 * time.Second},
 	}
 }
 
@@ -298,6 +298,13 @@ func (s *FrontendServer) handleIndex(w http.ResponseWriter, r *http.Request) {
     <button type="button" onclick="checkReceipt()">Verify Receipt HMAC</button>
     <pre id="receipt_out">Enter an order_id above to verify its GCS receipt &amp; HMAC-SHA256 signature.</pre>
   </div>
+  <div class="card">
+    <h2>Support Chat IA (POST /support/chat &rarr; AI Assistant + Cloud DLP + Model Armor)</h2>
+    <label>Customer Support Prompt</label>
+    <input id="chat_prompt" value="Summarize the status of Ticket #1042 for customer support." />
+    <button type="button" onclick="sendSupportChat()">Ask AI Support Assistant</button>
+    <pre id="chat_out">Submit a support query above to test frontend &rarr; ai-assistant (Model Armor, Cloud DLP &amp; Vertex AI EU).</pre>
+  </div>
   <script>
     async function placeOrder() {
       const out = document.getElementById('checkout_out');
@@ -331,6 +338,22 @@ func (s *FrontendServer) handleIndex(w http.ResponseWriter, r *http.Request) {
       out.textContent = 'Fetching /receipts/' + id + '...';
       try {
         const res = await fetch('/receipts/' + encodeURIComponent(id));
+        out.textContent = 'HTTP ' + res.status + '\n' + await res.text();
+      } catch (e) {
+        out.textContent = 'Error: ' + e;
+      }
+    }
+    async function sendSupportChat() {
+      const prompt = document.getElementById('chat_prompt').value.trim();
+      const out = document.getElementById('chat_out');
+      if (!prompt) { out.textContent = 'Please enter a support prompt.'; return; }
+      out.textContent = 'Sending query to /support/chat...';
+      try {
+        const res = await fetch('/support/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ prompt: prompt })
+        });
         out.textContent = 'HTTP ' + res.status + '\n' + await res.text();
       } catch (e) {
         out.textContent = 'Error: ' + e;
