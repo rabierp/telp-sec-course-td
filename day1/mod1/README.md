@@ -205,6 +205,7 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
      --image="europe-west1-docker.pkg.dev/telp-admin-central/telp-shop/backend:latest" \
      --project="${BACK_PROJECT_ID}" \
      --region="${REGION}" \
+     --ingress=all \
      --no-allow-unauthenticated \
      --min-instances=0 \
      --max-instances=3 \
@@ -240,6 +241,7 @@ Les images pré-compilées de **TelP Secure Shop** sont hébergées dans le regi
      --image="europe-west1-docker.pkg.dev/telp-admin-central/telp-shop/frontend:latest" \
      --project="${FRONT_PROJECT_ID}" \
      --region="${REGION}" \
+     --ingress=all \
      --no-allow-unauthenticated \
      --min-instances=0 \
      --max-instances=3 \

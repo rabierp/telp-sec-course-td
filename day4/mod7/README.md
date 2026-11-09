@@ -73,6 +73,9 @@ gcloud services enable \
   securitycenter.googleapis.com \
   cloudasset.googleapis.com \
   --project="${SEC_PROJECT_ID}"
+
+echo "Attente de 20s pour la propagation de l'activation des APIs sur ${SEC_PROJECT_ID}..."
+sleep 20
 ```
 
 ### 2.2 Interroger les *findings* SCC v2 sur votre dossier `folders/${FOLDER_ID}`

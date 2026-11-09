@@ -101,6 +101,8 @@ export KMS_KEY_URI="projects/${SEC_PROJECT_ID}/locations/${REGION}/keyRings/kr-c
 echo "KMS_KEY_URI = ${KMS_KEY_URI}"
 ```
 
+> **Note (en cas de réinitialisation via `lab-ctl reset`)** : Sur Google Cloud, les KeyRings et CryptoKeys Cloud KMS ne peuvent jamais être supprimés (seules leurs versions de matériel cryptographique peuvent être détruites). Si vous relancez ce module après un `reset`, ignorez le message `ALREADY_EXISTS` sur `kr-central` et `key-app-storage` et poursuivez directement.
+
 ### 3.2 Autoriser le Service Agent Cloud Storage de `$BACK_PROJECT_ID` sur la clé KMS et activer CMEK sur le bucket de reçus
 
 Lorsqu'un objet est écrit dans `gs://${BACK_PROJECT_ID}-receipts`, ce n'est pas `sa-backend` qui appelle directement Cloud KMS pour chiffrer les blocs de données au repos, mais le **Service Agent Google Cloud Storage** du projet `$BACK_PROJECT_ID` (`service-${BACK_PROJECT_NUMBER}@gs-project-accounts.iam.gserviceaccount.com`). Accordez-lui `roles/cloudkms.cryptoKeyEncrypterDecrypter` sur `key-app-storage`, puis configurez `key-app-storage` comme clé CMEK par défaut du bucket :
@@ -179,6 +181,8 @@ gcloud storage buckets create "gs://${SEC_PROJECT_ID}-audit-logs" \
   --uniform-bucket-level-access
 ```
 
+> **Note (en cas de réinitialisation via `lab-ctl reset`)** : Si vous aviez déjà verrouillé irréversiblement la rétention WORM (`1d`) sur `gs://${SEC_PROJECT_ID}-audit-logs` il y a moins de 24h, le bucket ne peut pas être supprimé avant l'expiration de la rétention de ses journaux (c'est précisément la garantie anti-effacement du mode WORM !). Dans ce cas, ignorez le message `409` / `already exists` lors du `buckets create` et du `--lock-retention-period`.
+
 ### 4.3 Créer le puits agrégé `sink-folder-audit` (`--include-children`) sur `folders/${FOLDER_ID}` et autoriser son `writerIdentity`
 
 Créez le puits de logs agrégé `sink-folder-audit` au niveau de votre dossier `folders/${FOLDER_ID}` avec `--include-children`, récupérez son identité dédiée (`writerIdentity` : `serviceAccount:service-folder-${FOLDER_ID}@gcp-sa-logging.iam.gserviceaccount.com`), et accordez-lui `roles/storage.objectCreator` sur le bucket d'audit :
@@ -248,10 +252,11 @@ printf "y\n" | gcloud storage buckets update "gs://${SEC_PROJECT_ID}-audit-logs"
 Écrivez un enregistrement de test dans `gs://${SEC_PROJECT_ID}-audit-logs`, puis tentez immédiatement de le supprimer avec votre compte (qui détient pourtant `roles/owner` sur `$SEC_PROJECT_ID`) :
 
 ```bash
-echo '{"event":"worm_immutability_test"}' | gcloud storage cp - "gs://${SEC_PROJECT_ID}-audit-logs/worm-test.json" --project="${SEC_PROJECT_ID}"
+WORM_TEST_OBJ="gs://${SEC_PROJECT_ID}-audit-logs/worm-test-$(date +%s).json"
+echo '{"event":"worm_immutability_test"}' | gcloud storage cp - "${WORM_TEST_OBJ}" --project="${SEC_PROJECT_ID}"
 
 echo "Tentative de suppression d'un journal protégé par Bucket Lock WORM (doit être rejetée en 403) :"
-gcloud storage rm "gs://${SEC_PROJECT_ID}-audit-logs/worm-test.json" --project="${SEC_PROJECT_ID}" || true
+gcloud storage rm "${WORM_TEST_OBJ}" --project="${SEC_PROJECT_ID}" || true
 ```
 
 Vous observez `HTTPError 403: Object ... is subject to bucket's retention policy and cannot be deleted or overwritten` : un attaquant qui compromettrait un compte administrateur ne peut pas effacer ses traces d'intrusion.

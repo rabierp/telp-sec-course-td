@@ -241,6 +241,9 @@ Si Private Google Access couvre les APIs Google, il ne route **pas** le trafic v
      --resources="projects/${NET_PROJECT_NUMBER},projects/${FRONT_PROJECT_NUMBER},projects/${BACK_PROJECT_NUMBER},projects/${SEC_PROJECT_NUMBER}" \
      --restricted-services="storage.googleapis.com,firestore.googleapis.com,cloudkms.googleapis.com" \
      --access-levels="al_student_${ACCOUNT_ID}"
+
+   echo "Attente de 30s pour la propagation globale du périmètre VPC-SC et de l'Access Level..."
+   sleep 30
    ```
 
 3. **Expérience d'exfiltration inter-périmètres (Ingress autorisé vs. Egress bloqué par VPC-SC)** :
