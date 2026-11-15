@@ -156,10 +156,10 @@ export ID_TOKEN="$(gcloud auth print-identity-token)"
 echo "1) Test d'accès direct à *.run.app (doit échouer en 404/403 car ingress=internal-and-cloud-load-balancing) :"
 curl -s -o /dev/null -w "HTTP %{http_code}\n" -H "Authorization: Bearer ${ID_TOKEN}" "${FRONT_RUN_URL}/health"
 
-echo "2) Attente de disponibilité du Global HTTPS Load Balancer https://${LB_IP}.nip.io/health :"
-for i in {1..18}; do
-  CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/health" || echo "000")"
-  echo "   Essai ${i}/18 -> HTTP ${CODE}"
+echo "2) Attente de disponibilité du Global HTTPS Load Balancer https://${LB_IP}.nip.io/health (peut prendre 90 à 150 s) :"
+for i in {1..36}; do
+  CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/health" || true)"
+  echo "   Essai ${i}/36 -> HTTP ${CODE}"
   [[ "${CODE}" == "200" ]] && break
   sleep 5
 done
@@ -251,11 +251,12 @@ Après ~30 à 60 secondes de propagation de la politique Cloud Armor au niveau d
 
 ```bash
 export ID_TOKEN="$(gcloud auth print-identity-token)"
-for i in {1..12}; do
-  SQLI_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/?q=1%27%20OR%20%271%27=%271")"
-  XSS_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/?q=%3Cscript%3Ealert(1)%3C/script%3E")"
-  OK_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/?q=yubikey")"
-  echo "Essai ${i}/12 -> SQLi=${SQLI_CODE} (attendu 403), XSS=${XSS_CODE} (attendu 403), Légitime=${OK_CODE} (attendu 200)"
+# La propagation d'une Cloud Armor Security Policy sur Envoy Global LB prend généralement 60 à 150 s :
+for i in {1..36}; do
+  SQLI_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/?q=1%27%20OR%20%271%27=%271" || true)"
+  XSS_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/?q=%3Cscript%3Ealert(1)%3C/script%3E" || true)"
+  OK_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://${LB_IP}.nip.io/?q=yubikey" || true)"
+  echo "Essai ${i}/36 -> SQLi=${SQLI_CODE} (attendu 403), XSS=${XSS_CODE} (attendu 403), Légitime=${OK_CODE} (attendu 200)"
   [[ "${SQLI_CODE}" == "403" && "${XSS_CODE}" == "403" && "${OK_CODE}" == "200" ]] && break
   sleep 5
 done
@@ -270,6 +271,11 @@ done
 Lorsque IAP intercepte et valide l'identité d'un utilisateur sur `be-admin`, c'est le **Service Agent Google IAP** (`service-${FRONT_PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com`) qui achemine ensuite la requête vers le Serverless NEG et le service Cloud Run `frontend`. Comme `frontend` est déployé avec `--no-allow-unauthenticated`, vous devez accorder **`roles/run.invoker`** à ce Service Agent IAP sur `frontend` :
 
 ```bash
+gcloud beta services identity create \
+  --service=iap.googleapis.com \
+  --project="${FRONT_PROJECT_ID}" \
+  --quiet || true
+
 gcloud run services add-iam-policy-binding frontend \
   --project="${FRONT_PROJECT_ID}" \
   --region="${REGION}" \
@@ -299,9 +305,21 @@ done
 
 ### 5.3 Vérifier l'interception Zero-Trust IAP sur `https://${LB_IP}.nip.io/admin`
 
-Testez une requête non authentifiée vers `/admin` (sans suivre les redirections) : IAP doit intercepter la requête en bordure Google et renvoyer **`HTTP 302`** vers `https://accounts.google.com/o/oauth2/v2/auth...` :
+Testez une requête non authentifiée vers `/admin` (sans suivre les redirections). La propagation Anycast d'IAP sur les PoPs Google Front End prend généralement **60 à 140 secondes** (pendant cette fenêtre, Cloud Run répond `403`, puis IAP bascule sur **`HTTP 302`** vers `https://accounts.google.com/o/oauth2/v2/auth...`). Attendez que le code `302`/`401` soit stable sur 3 requêtes consécutives avant de lancer `lab-ctl verify` :
 
 ```bash
+CONSECUTIVE=0
+for i in {1..36}; do
+  ADMIN_CODE="$(curl -s --cacert /tmp/telp-lb-tls.crt -o /dev/null -w '%{http_code}' "https://${LB_IP}.nip.io/admin" || true)"
+  echo "Essai ${i}/36 -> /admin HTTP ${ADMIN_CODE} (attendu 302/401)"
+  if [[ "${ADMIN_CODE}" == "302" || "${ADMIN_CODE}" == "401" ]]; then
+    CONSECUTIVE=$((CONSECUTIVE + 1))
+    [[ "${CONSECUTIVE}" -ge 3 ]] && break
+  else
+    CONSECUTIVE=0
+  fi
+  sleep 5
+done
 curl -s --cacert /tmp/telp-lb-tls.crt -I "https://${LB_IP}.nip.io/admin" | head -n 10
 ```
 
