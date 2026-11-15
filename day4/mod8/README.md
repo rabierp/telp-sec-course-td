@@ -206,13 +206,12 @@ for ROLE in \
 done
 
 # Autoriser sa-ai-assistant dans l'Access Level VPC-SC al_student_${ACCOUNT_ID}
-# (tout en conservant votre compte étudiant, l'enseignant et le Sink d'audit du Module 6) :
+# (tout en conservant votre compte étudiant et le Sink d'audit du Module 6) :
 TMP_AL="$(mktemp -d)"
 SINK_SA="$(gcloud logging sinks describe sink-folder-audit --folder="${FOLDER_ID}" --format='value(writerIdentity)')"
 cat <<EOF > "${TMP_AL}/al-spec.yaml"
 - members:
   - user:${STUDENT_EMAIL}
-  - user:pascal.rabier@gcp.telecom-paris.fr
   - ${SINK_SA}
   - serviceAccount:sa-ai-assistant@${BACK_PROJECT_ID}.iam.gserviceaccount.com
 EOF

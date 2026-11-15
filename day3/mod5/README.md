@@ -279,7 +279,7 @@ gcloud run services add-iam-policy-binding frontend \
 
 ### 5.2 Activer IAP sur le Backend Service `be-admin` et accorder `roles/iap.httpsResourceAccessor`
 
-Activez IAP en mode **Google-managed OAuth** directement sur le Backend Service global `be-admin` via `gcloud compute backend-services update be-admin --global --iap=enabled` *(n'utilisez pas `gcloud iap web enable`, qui exige des identifiants OAuth personnalisés obsolètes)*, puis accordez **`roles/iap.httpsResourceAccessor`** exclusivement à votre compte `user:${STUDENT_EMAIL}` (sans `allAuthenticatedUsers` ni `domain:gcp.telecom-paris.fr`) :
+Activez IAP en mode **Google-managed OAuth** directement sur le Backend Service global `be-admin` via `gcloud compute backend-services update be-admin --global --iap=enabled` *(n'utilisez pas `gcloud iap web enable`, qui exige des identifiants OAuth personnalisés obsolètes)*, puis accordez **`roles/iap.httpsResourceAccessor`** exclusivement à votre compte `user:${STUDENT_EMAIL}` ainsi qu'au groupe de l'équipe enseignante `group:admintp@gcp.telecom-paris.fr` (sans `allAuthenticatedUsers` ni `domain:gcp.telecom-paris.fr`) :
 
 ```bash
 gcloud compute backend-services update be-admin \
@@ -287,12 +287,14 @@ gcloud compute backend-services update be-admin \
   --global \
   --iap=enabled
 
-gcloud iap web add-iam-policy-binding \
-  --project="${FRONT_PROJECT_ID}" \
-  --resource-type=backend-services \
-  --service=be-admin \
-  --member="user:${STUDENT_EMAIL}" \
-  --role="roles/iap.httpsResourceAccessor"
+for MEMBER in "user:${STUDENT_EMAIL}" "group:admintp@gcp.telecom-paris.fr"; do
+  gcloud iap web add-iam-policy-binding \
+    --project="${FRONT_PROJECT_ID}" \
+    --resource-type=backend-services \
+    --service=be-admin \
+    --member="${MEMBER}" \
+    --role="roles/iap.httpsResourceAccessor"
+done
 ```
 
 ### 5.3 Vérifier l'interception Zero-Trust IAP sur `https://${LB_IP}.nip.io/admin`

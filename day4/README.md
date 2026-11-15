@@ -1,5 +1,8 @@
 # Jour 4 — Conformité Européenne, Security Command Center (SCC v2) & Sécurité de l'IA Générative (SAIF, Cloud DLP & Model Armor)
 
+> [!IMPORTANT]
+> **Environnement d'Organisation GCP Pré-provisionné** : Ces instructions du **Jour 4** sont conçues pour être suivies dans une Organisation Google Cloud (`gcp.telecom-paris.fr`) dont la hiérarchie de ressources (`folders/$FOLDER_ID` et 4 projets), les rôles IAM (`roles/securitycenter.findingsViewer` sur le dossier étudiant), les Politiques d'Organisation (`constraints/gcp.resourceLocations`, etc.) et le socle **Security Command Center Standard (`builtin-security-essentials`)** ont été préparés de manière appropriée suivant des instructions qui ne sont pas dans ce dépôt.
+
 Aux **Jours 1 à 3**, vous avez construit l'architecture Zero-Trust de **TelP Secure Shop** sur 4 projets isolés (`net`, `front`, `back`, `sec`) : identités dédiées moindre privilège, segmentation réseau **Shared VPC** et périmètre **VPC Service Controls**, protection périphérique WAF/IAP, chiffrement **Cloud KMS CMEK** inter-projets et puits d'audit **WORM** immuable.
 
 Deux défis majeurs d'exploitation en production restent toutefois à relever lors de cette quatrième et dernière journée :

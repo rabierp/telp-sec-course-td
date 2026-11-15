@@ -5,6 +5,15 @@ rouge **TelP Secure Shop**, le binaire de vérification `./bin/lab-ctl` pour
 **Google Cloud Shell**, ainsi que les guides de travaux pratiques répartis sur
 4 journées (8 modules).
 
+> [!IMPORTANT]
+> **Prérequis d'Organisation Google Cloud (Environnement Pré-provisionné)** :
+> Ce cours et l'ensemble des instructions de ces travaux pratiques ont été conçus pour être exécutés au sein d'une **Organisation Google Cloud dédiée (`gcp.telecom-paris.fr`)** dont :
+> - la **hiérarchie de ressources** (dossier étudiant `Students/student-<account-id>` et 4 projets isolés pré-créés `telp-<account-id>-{net,front,back,sec}`),
+> - les **comptes et groupes Cloud Identity / IAM** (droits délégués par dossier et par projet, groupe d'équipe enseignante `admintp@gcp.telecom-paris.fr`, politique Access Context Manager déléguée `$ACCESS_POLICY_ID`),
+> - et les **Politiques d'Organisation (*Organization Policies*)** ainsi que le socle **Security Command Center Standard**
+>
+> ont été préalablement configurés par l'équipe enseignante suivant des instructions d'administration qui ne figurent pas dans ce dépôt. Ces travaux pratiques ne peuvent donc pas être suivis tels quels dans un projet GCP personnel isolé hors de cette organisation préparée.
+
 ## Démarrage Rapide (Google Cloud Shell)
 
 1. Activez votre coupon de **50 \$ de crédits Google Cloud Education** reçu par

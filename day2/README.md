@@ -1,5 +1,8 @@
 # Jour 2 — Segmentation Réseau Shared VPC & Périmètre VPC Service Controls (VPC-SC)
 
+> [!IMPORTANT]
+> **Environnement d'Organisation GCP Pré-provisionné** : Ces instructions du **Jour 2** sont conçues pour être suivies dans une Organisation Google Cloud (`gcp.telecom-paris.fr`) dont la hiérarchie de ressources (dossier `folders/$FOLDER_ID` et 4 projets), les délégations IAM (`roles/compute.xpnAdmin`, `roles/accesscontextmanager.policyAdmin` sur la politique déléguée `$ACCESS_POLICY_ID`) et les Politiques d'Organisation ont été préparées en amont suivant des instructions qui ne sont pas dans ce dépôt.
+
 Au **Jour 1**, vous avez déployé l'application **TelP Secure Shop** (`frontend`, `backend`, Firestore, Cloud Storage et la VM `bastion`) et verrouillé ses identités IAM selon le principe du moindre privilège (`sa-frontend`, `sa-backend`, `sa-bastion`, OIDC inter-services, Uniform Bucket-Level Access et OS Login). Cependant, sur le plan réseau, la VM `bastion` résidait encore sur un VPC local provisoire (`vpc-bootstrap` dans `$BACK_PROJECT_ID`) et les services Cloud Run `frontend` et `backend` communiquaient via le réseau public Google (`--ingress=all`).
 
 Au **Jour 2**, vous mettez en œuvre une **architecture réseau Zero-Trust multi-projets** articulée autour de deux modules complémentaires :

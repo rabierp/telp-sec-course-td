@@ -1,5 +1,8 @@
 # Jour 1 — Fondations GCP, Politiques d'Organisation & Durcissement IAM Zero-Trust
 
+> [!IMPORTANT]
+> **Environnement d'Organisation GCP Pré-provisionné** : Ces instructions du **Jour 1** sont conçues pour être suivies dans une Organisation Google Cloud (`gcp.telecom-paris.fr`) dont la hiérarchie de ressources (dossier `Students/student-<account-id>` et 4 projets `net`, `front`, `back`, `sec`), les comptes/rôles IAM et les 10 Politiques d'Organisation ont été préalablement préparés suivant des procédures d'administration qui ne figurent pas dans ce dépôt.
+
 Au **Jour 1**, vous prenez en main votre **Landing Zone d'entreprise à 4 projets** (`net`, `front`, `back`, `sec`) sous le dossier `Students/student-<account-id>` (`folders/$FOLDER_ID`) de l'organisation `gcp.telecom-paris.fr` (région `europe-west1`), déployez l'application fil rouge **TelP Secure Shop**, puis durcissez son architecture d'identités IAM :
 
 1. **[Module 1 (`day1/mod1`) — Fondations GCP, Politiques d'Organisation & Déploiement Multi-Projets](./mod1/README.md)** :

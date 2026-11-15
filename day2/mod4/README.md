@@ -31,7 +31,8 @@ Dans ce **Module 4**, vous allez :
 | Projets protégés (4) : $NET_PROJECT_NUMBER, $FRONT_PROJECT_NUMBER,                       |
 |                        $BACK_PROJECT_NUMBER, $SEC_PROJECT_NUMBER                         |
 | APIs restreintes : storage.googleapis.com, firestore.googleapis.com, cloudkms            |
-| Access Level (al_student_${ACCOUNT_ID}) : <etudiant>@gcp.telecom-paris.fr + instructeur  |
+| Access Level (al_student_${ACCOUNT_ID}) : user:<etudiant>@gcp.telecom-paris.fr           |
+| Ingress Policy : group:admintp@gcp.telecom-paris.fr (groupe équipe enseignante)          |
 |                                                                                          |
 |  +------------------------------------------------------------------------------------+  |
 |  | Projet Réseau Hôte ($NET_PROJECT_ID) — vpc-shared                                  |  |
@@ -213,34 +214,48 @@ Si Private Google Access couvre les APIs Google, il ne route **pas** le trafic v
 > - **Attention** : Ne restreignez **pas** `artifactregistry.googleapis.com` dans le périmètre VPC-SC, car vos services Cloud Run tirent leurs images conteneurs depuis le registre central du cours (`europe-west1-docker.pkg.dev/telp-admin-central/telp-shop/...`) situé hors de votre périmètre.
 
 1. Utilisez la variable `$ACCOUNT_ID` (exportée automatiquement par `source <(./bin/lab-ctl env)`) pour créer votre **Access Level (`al_student_${ACCOUNT_ID}`)** sous votre politique d'accès déléguée `$ACCESS_POLICY_ID` :
-   *(Important : incluez votre compte étudiant ainsi que `user:pascal.rabier@gcp.telecom-paris.fr` afin que vos commandes depuis Cloud Shell et l'audit d'évaluation puissent entrer dans le périmètre).*
+   *(Note sur les bonnes pratiques GCP : dans Access Context Manager, le champ `members:` d'un Basic Access Level n'accepte que les comptes individuels `user:` et `serviceAccount:`, et rejette les groupes Google `group:`. Votre Access Level contient donc uniquement votre compte étudiant `user:${STUDENT_EMAIL}`, tandis que le groupe de l'équipe enseignante `group:admintp@gcp.telecom-paris.fr` sera autorisé à l'étape suivante via une politique d'entrée `--ingress-policies` sur le périmètre VPC-SC).*
 
    ```bash
    cat <<EOF > /tmp/access-level.yaml
    - members:
      - user:${STUDENT_EMAIL}
-     - user:pascal.rabier@gcp.telecom-paris.fr
    EOF
 
    gcloud access-context-manager levels create "al_student_${ACCOUNT_ID}" \
      --policy="${ACCESS_POLICY_ID}" \
-     --title="Student & Instructor Access Level (${ACCOUNT_ID})" \
+     --title="Student Access Level (${ACCOUNT_ID})" \
      --basic-level-spec=/tmp/access-level.yaml
    rm -f /tmp/access-level.yaml
    ```
 
-   > **Attention (Jour 3 — Module 6)** : La commande `gcloud access-context-manager levels update ... --basic-level-spec=...` remplace **intégralement** la liste `members:` existante. Si vous mettez à jour `al_student_${ACCOUNT_ID}` au Jour 3, conservez toujours à la fois `user:${STUDENT_EMAIL}` et `user:pascal.rabier@gcp.telecom-paris.fr` dans le fichier YAML.
+   > **Attention (Jour 3 — Module 6 & Jour 4 — Module 8)** : La commande `gcloud access-context-manager levels update ... --basic-level-spec=...` remplace **intégralement** la liste `members:` existante. Lorsque vous mettrez à jour `al_student_${ACCOUNT_ID}` aux Jours 3 et 4 pour y ajouter des comptes de service, conservez toujours `user:${STUDENT_EMAIL}` dans le fichier YAML.
 
-2. Créez le **périmètre VPC Service Controls régulier (`perim_student_${ACCOUNT_ID}`)** englobant les numéros de vos **4 projets** (`$NET_PROJECT_NUMBER`, `$FRONT_PROJECT_NUMBER`, `$BACK_PROJECT_NUMBER`, `$SEC_PROJECT_NUMBER`) et restreignant `storage.googleapis.com`, `firestore.googleapis.com` et `cloudkms.googleapis.com` :
+2. Créez le **périmètre VPC Service Controls régulier (`perim_student_${ACCOUNT_ID}`)** englobant les numéros de vos **4 projets** (`$NET_PROJECT_NUMBER`, `$FRONT_PROJECT_NUMBER`, `$BACK_PROJECT_NUMBER`, `$SEC_PROJECT_NUMBER`), restreignant `storage.googleapis.com`, `firestore.googleapis.com` et `cloudkms.googleapis.com`, et attachant une règle d'entrée (`--ingress-policies`) pour le groupe de l'équipe enseignante `group:admintp@gcp.telecom-paris.fr` :
 
    ```bash
+   cat <<EOF > /tmp/ingress-admintp.yaml
+   - ingressFrom:
+       identities:
+         - group:admintp@gcp.telecom-paris.fr
+       sources:
+         - accessLevel: "*"
+     ingressTo:
+       resources:
+         - "*"
+       operations:
+         - serviceName: "*"
+   EOF
+
    gcloud access-context-manager perimeters create "perim_student_${ACCOUNT_ID}" \
      --policy="${ACCESS_POLICY_ID}" \
      --title="4-Project Student VPC-SC Perimeter (${ACCOUNT_ID})" \
      --perimeter-type=regular \
      --resources="projects/${NET_PROJECT_NUMBER},projects/${FRONT_PROJECT_NUMBER},projects/${BACK_PROJECT_NUMBER},projects/${SEC_PROJECT_NUMBER}" \
      --restricted-services="storage.googleapis.com,firestore.googleapis.com,cloudkms.googleapis.com" \
-     --access-levels="al_student_${ACCOUNT_ID}"
+     --access-levels="al_student_${ACCOUNT_ID}" \
+     --ingress-policies=/tmp/ingress-admintp.yaml
+   rm -f /tmp/ingress-admintp.yaml
 
    echo "Attente de 30s pour la propagation globale du périmètre VPC-SC et de l'Access Level..."
    sleep 30
